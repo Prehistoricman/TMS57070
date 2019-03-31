@@ -93,7 +93,8 @@ class TMS57070(idaapi.processor_t):
         "SP", #Required for IDA
         "CS",
         "DS",
-        "ACC1",# accumulators
+        "ACC", #accumulators
+        "ACC1",
         "ACC2",
         "MACC1",
         "MACC2",
@@ -184,6 +185,7 @@ class TMS57070(idaapi.processor_t):
         #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6E
         #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6F
         {'name': 'LRI',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
+        {'name': 'LRIAE', 'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register if accumulator greater than or equal to zero"}, #C1
         {'name': 'RPTK',  'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next instruction"}, #E0
         {'name': 'RPTB',  'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next block"}, #E4
         {'name': 'RET',   'feature': CF_STOP,           'cmt': "Return"}, #EC
@@ -193,7 +195,7 @@ class TMS57070(idaapi.processor_t):
         {'name': 'JNZ',   'feature': CF_JUMP,           'cmt': "Jump if not zero"}, #F18
         {'name': 'JGZ',   'feature': CF_JUMP,           'cmt': "Jump if greater than zero"}, #F20
         {'name': 'JLZ',   'feature': CF_JUMP,           'cmt': "Jump if less than zero"}, #F28
-        {'name': 'JAV',   'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
+        {'name': 'JOV',   'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
         {'name': 'CALL',  'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
     ]
     
@@ -364,14 +366,14 @@ class TMS57070(idaapi.processor_t):
             ctx.out_symbol("(")
             
             #output address
-            ok = ctx.out_name_expr(op, op.addr, BADADDR)
-            if not ok:
-                #When op.addr is either indirect or references outside of the address space
-                ctx.out_tagon(COLOR_ERROR)
-                ctx.out_long(op.addr, 16)
-                ctx.out_tagoff(COLOR_ERROR)
-                #QueueMark(Q_noName, self.cmd.ea)
-            
+            #ok = ctx.out_name_expr(op, op.addr, BADADDR)
+            #if not ok:
+            #    #When op.addr is either indirect or references outside of the address space
+            #    ctx.out_tagon(COLOR_ERROR)
+            #    ctx.out_long(op.addr, 16)
+            #    ctx.out_tagoff(COLOR_ERROR)
+            #    #QueueMark(Q_noName, self.cmd.ea)
+            ctx.out_value(op, OOF_ADDR | OOFW_IMM)
             ctx.out_symbol(")")
             
         else:
@@ -446,7 +448,7 @@ class TMS57070(idaapi.processor_t):
         elif condition == 0x28: #jump if less than zero
             self.insn.itype = self.get_instruction("JLZ")
         elif condition == 0x30: #jump if acc overflow
-            self.insn.itype = self.get_instruction("JAV")
+            self.insn.itype = self.get_instruction("JOV")
         elif condition == 0x80: #call
             self.insn.itype = self.get_instruction("CALL")
             
@@ -507,9 +509,17 @@ class TMS57070(idaapi.processor_t):
         elif self.b2 == 0x38:
             self.insn[1].reg = self.get_register("CIR2")
         elif self.b2 == 0x40:
+            self.insn.itype = self.get_instruction("LRIAE")
             self.insn[1].reg = self.get_register("CA1")
+            
+            self.insn[2].type = o_reg
+            self.insn[2].reg = self.get_register("ACC")
         elif self.b2 == 0x48:
+            self.insn.itype = self.get_instruction("LRIAE")
             self.insn[1].reg = self.get_register("CA2")
+            
+            self.insn[2].type = o_reg
+            self.insn[2].reg = self.get_register("ACC")
         else:
             logging.error("ana_lri wrong operand to LADI: " + hex(self.b2))
             
@@ -576,7 +586,7 @@ class TMS57070(idaapi.processor_t):
     
     def ana_dmem_addressing(self, operand):
         arg = self.b3 & 0x30
-        if (arg == 0x30):
+        if (arg == 0x30 or arg == 0x20):
             self.insn[operand].type = o_reg
             self.insn[operand].specflag1 = 1 #Output *
             if (self.b3 & 8 > 0):
@@ -586,8 +596,6 @@ class TMS57070(idaapi.processor_t):
             
             #post-increment flag
             self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
-        elif (arg == 0x20):
-            pass #TODO investigation
         elif (arg == 0x10):
             self.insn[operand].type = o_mem
             self.insn[operand].addr = 0x400 + (self.b3 & 1 | self.b4)
