@@ -169,19 +169,14 @@ class TMS57070(idaapi.processor_t):
         #{'name': 'ZACC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Zero accumulator if CMEM less than accumulator"}, #2A
         {'name': 'AND',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND accumulator with MAC"}, #2B
         {'name': 'XOR',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR accumulator with CMEM"}, #32
-        {'name': 'MPY',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC1"}, #40
-        {'name': 'MPY',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC2"}, #41
-        {'name': 'MPY',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with DMEM"}, #42
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC1, accumulate into MAC"}, #50
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC2, accumulate into MAC"}, #51
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC1, accumulate into MAC"}, #52
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC2, accumulate into MAC"}, #53
-        {'name': 'MACU',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC1, accumulate into MAC"}, #5C
-        {'name': 'MACU',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC2, accumulate into MAC"}, #5D
-        {'name': 'MACU',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC1, accumulate into MAC"}, #5E
-        {'name': 'MACU',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC2, accumulate into MAC"}, #5F
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6C
-        {'name': 'MAC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6D
+        {'name': 'MPY(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
+        {'name': 'MPY(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with DMEM"}, #42
+        {'name': 'MAC(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC, accumulate into MAC"}, #50, 51
+        {'name': 'MAC(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC, accumulate into MAC"}, #52, 53
+        {'name': 'MACU(1)',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate into MAC"}, #5C, 5D
+        {'name': 'MACU(2)',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC, accumulate into MAC"}, #5E, 5F
+        {'name': 'MAC(3)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6C
+        {'name': 'MAC(4)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6D
         #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6E
         #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6F
         {'name': 'LRI',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
@@ -331,6 +326,8 @@ class TMS57070(idaapi.processor_t):
             else:
                 if (op.specflag1 == 1):
                     ctx.out_symbol("*") #pointer symbol
+                if (op.specflag3 == 1):
+                    ctx.out_symbol("-") #minus sign
                 ctx.out_register(self.regNames[op.reg])
                 if (op.specflag2 == 1):
                     ctx.out_symbol("+") #post-increment symbol
@@ -598,7 +595,7 @@ class TMS57070(idaapi.processor_t):
             self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
         elif (arg == 0x10):
             self.insn[operand].type = o_mem
-            self.insn[operand].addr = 0x400 + (self.b3 & 1 | self.b4)
+            self.insn[operand].addr = (self.b3 & 1 | self.b4) #0x400 + (self.b3 & 1 | self.b4)
             self.insn[operand].specval = 1 #DMEM
     
     def ana_cmem_addressing(self, operand):
@@ -625,7 +622,7 @@ class TMS57070(idaapi.processor_t):
             self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
         elif (arg == 0x20):
             self.insn[operand].type = o_mem
-            self.insn[operand].addr = 0x200 + (self.b3 & 1 | self.b4)
+            self.insn[operand].addr = (self.b3 & 1 | self.b4) #0x200 + (self.b3 & 1 | self.b4)
             self.insn[operand].specval = 2 #CMEM
     
     def ana_lac(self):
@@ -739,6 +736,69 @@ class TMS57070(idaapi.processor_t):
         self.insn.itype = self.get_instruction("SUB")
         self.ana_arith()
     
+    def ana_mult(self):
+        self.insn[1].type = o_reg
+        if (self.b1 & 0x01 > 0):
+            self.insn[1].reg = self.get_register("ACC2")
+        else:
+            self.insn[1].reg = self.get_register("ACC1")
+        if (self.b2 & 0x80 > 0):
+            self.insn[1].specflag3 = 1 #Disply minus sign
+        
+        self.insn[2].type = o_reg
+        if (self.b2 & 0x40 > 0):
+            self.insn[2].reg = self.get_register("MACC2")
+        else:
+            self.insn[2].reg = self.get_register("MACC1")
+    
+    def ana_mult_cmem(self):
+        logging.info("ana_mult_cmem")
+        
+        self.ana_cmem_addressing(0)
+        self.ana_mult()
+        
+    def ana_mult_dmem(self):
+        logging.info("ana_mult_dmem")
+        
+        self.ana_dmem_addressing(0)
+        self.ana_mult()
+    
+    def ana_mpy40(self):
+        logging.info("ana_mpy40")
+        self.insn.itype = self.get_instruction("MPY(1)")
+        
+        self.ana_mult_cmem()
+    
+    def ana_mpy42(self):
+        logging.info("ana_mpy42")
+        self.insn.itype = self.get_instruction("MPY(2)")
+        
+        self.ana_mult_dmem()
+        
+    def ana_mac50(self):
+        logging.info("ana_mac50")
+        self.insn.itype = self.get_instruction("MAC(1)")
+        
+        self.ana_mult_cmem()
+    
+    def ana_mac52(self):
+        logging.info("ana_mac52")
+        self.insn.itype = self.get_instruction("MAC(2)")
+        
+        self.ana_mult_dmem()
+        
+    def ana_mac5C(self):
+        logging.info("ana_mac5C")
+        self.insn.itype = self.get_instruction("MACU(1)")
+        
+        self.ana_mult_cmem()
+    
+    def ana_mac5E(self):
+        logging.info("ana_mac5E")
+        self.insn.itype = self.get_instruction("MACU(2)")
+        
+        self.ana_mult_dmem()
+    
     def notify_ana(self, insn):
         logging.info("================= notify_ana =================")
         
@@ -787,28 +847,18 @@ class TMS57070(idaapi.processor_t):
         #    
         #elif opcode1 == 0x32:
         #    
-        #elif opcode1 == 0x40:
-        #    
-        #elif opcode1 == 0x41:
-        #    
-        #elif opcode1 == 0x42:
-        #    
-        #elif opcode1 == 0x50:
-        #    
-        #elif opcode1 == 0x51:
-        #    
-        #elif opcode1 == 0x52:
-        #    
-        #elif opcode1 == 0x53:
-        #    
-        #elif opcode1 == 0x5C:
-        #    
-        #elif opcode1 == 0x5D:
-        #    
-        #elif opcode1 == 0x5E:
-        #    
-        #elif opcode1 == 0x5F:
-        #    
+        elif opcode1 == 0x40 or opcode1 == 0x41:
+            self.ana_mpy40()
+        elif opcode1 == 0x42 or opcode1 == 0x43:
+            self.ana_mpy42()
+        elif opcode1 == 0x50 or opcode1 == 0x51:
+            self.ana_mac50()
+        elif opcode1 == 0x52 or opcode1 == 0x53:
+            self.ana_mac52()
+        elif opcode1 == 0x5C or opcode1 == 0x5D:
+            self.ana_mac5C()
+        elif opcode1 == 0x5E or opcode1 == 0x5F:
+            self.ana_mac5E()
         #elif opcode1 == 0x6C:
         #    
         #elif opcode1 == 0x6D:
