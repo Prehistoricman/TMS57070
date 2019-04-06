@@ -156,42 +156,45 @@ class TMS57070(idaapi.processor_t):
     
     # Array of instructions
     instruc = [
-        {'name': 'NOP',   'feature': 0, 'cmt': "No operation"}, #00
-        {'name': 'CPML',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and two's complement"}, #09-07
-        {'name': 'LACCU', 'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC"}, #08-0B
-        {'name': 'LACC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC"}, #10-13
-        {'name': 'INC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and increment"}, #14-17
-        {'name': 'DEC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and decrement"}, #18-1B
-        {'name': 'SHACC', 'feature': CF_USE1 | CF_SHFT, 'cmt': "Shift ACC once left or right"}, #1C does the left/right bit count as an operand?
-        {'name': 'ZACC',  'feature': CF_USE1,           'cmt': "Zero ACC"}, #1D
-        {'name': 'ADD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
-        {'name': 'SUB',   'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
-        #{'name': 'ZACC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Zero accumulator if CMEM less than accumulator"}, #2A
-        {'name': 'AND',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND accumulator with MAC"}, #2B
-        {'name': 'XOR',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR accumulator with CMEM"}, #32
-        {'name': 'MPY(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
-        {'name': 'MPY(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with DMEM"}, #42
-        {'name': 'MAC(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC, accumulate into MAC"}, #50, 51
-        {'name': 'MAC(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC, accumulate into MAC"}, #52, 53
-        {'name': 'MACU(1)',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate into MAC"}, #5C, 5D
-        {'name': 'MACU(2)',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC, accumulate into MAC"}, #5E, 5F
-        {'name': 'MAC(3)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6C
-        {'name': 'MAC(4)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6D
-        #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6E
-        #{'name': 'MAC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6F
-        {'name': 'LRI',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
-        {'name': 'LRIAE', 'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register if accumulator greater than or equal to zero"}, #C1
-        {'name': 'RPTK',  'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next instruction"}, #E0
-        {'name': 'RPTB',  'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next block"}, #E4
-        {'name': 'RET',   'feature': CF_STOP,           'cmt': "Return"}, #EC
-        {'name': 'RETI',  'feature': CF_STOP,           'cmt': "Return from interrupt"}, #EE
-        {'name': 'JMP',   'feature': CF_JUMP,           'cmt': "Jump unconditionally"}, #F0
-        {'name': 'JZ',    'feature': CF_JUMP,           'cmt': "Jump if zero"}, #F10
-        {'name': 'JNZ',   'feature': CF_JUMP,           'cmt': "Jump if not zero"}, #F18
-        {'name': 'JGZ',   'feature': CF_JUMP,           'cmt': "Jump if greater than zero"}, #F20
-        {'name': 'JLZ',   'feature': CF_JUMP,           'cmt': "Jump if less than zero"}, #F28
-        {'name': 'JOV',   'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
-        {'name': 'CALL',  'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
+        {'name': 'NOP',    'feature': 0,                 'cmt': "No operation"}, #00
+        {'name': 'CPML',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and two's complement"}, #09-07
+        {'name': 'LACCU',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC"}, #08-0B
+        {'name': 'LACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC"}, #10-13
+        {'name': 'INC',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and increment"}, #14-17
+        {'name': 'DEC',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and decrement"}, #18-1B
+        {'name': 'SHACC',  'feature': CF_USE1 | CF_SHFT, 'cmt': "Shift ACC once left or right"}, #1C does the left/right bit count as an operand?
+        {'name': 'ZACC',   'feature': CF_USE1,           'cmt': "Zero ACC"}, #1D
+        {'name': 'ADD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
+        {'name': 'SUB',    'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
+        #{'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero accumulator if CMEM less than accumulator"}, #2A
+        {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND accumulator with MAC"}, #2B
+        {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR accumulator with CMEM"}, #32
+        {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
+        {'name': 'MPY(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with DMEM"}, #42
+        {'name': 'MAC(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC, accumulate into MAC"}, #50, 51
+        {'name': 'MAC(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC, accumulate into MAC"}, #52, 53
+        {'name': 'MACU(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate into MAC"}, #5C, 5D
+        {'name': 'MACU(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC, accumulate into MAC"}, #5E, 5F
+        {'name': 'MAC(3)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MAC"}, #6C
+        {'name': 'MACU(3)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MAC"}, #6D
+        {'name': 'MACU(4)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned DMEM, accumulate into MAC"}, #6E
+        {'name': 'MACU(5)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by unsigned DMEM, accumulate into MAC"}, #6F
+        {'name': 'LRI',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
+        {'name': 'LRIAE',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register if accumulator greater than or equal to zero"}, #C1
+        {'name': 'RDE',    'feature': CF_USE1,           'cmt': "Read from external memory at address from CMEM"}, #E0
+        {'name': 'WRE',    'feature': CF_USE1,           'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #E0
+        {'name': 'RPTK',   'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next instruction"}, #E0
+        {'name': 'RPTB',   'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next block"}, #E4
+        {'name': 'RET',    'feature': CF_STOP,           'cmt': "Return"}, #EC
+        {'name': 'RETI',   'feature': CF_STOP,           'cmt': "Return from interrupt"}, #EE
+        {'name': 'JMP',    'feature': CF_JUMP,           'cmt': "Jump unconditionally"}, #F0
+        {'name': 'JZ',     'feature': CF_JUMP,           'cmt': "Jump if zero"}, #F10
+        {'name': 'JNZ',    'feature': CF_JUMP,           'cmt': "Jump if not zero"}, #F18
+        {'name': 'JGZ',    'feature': CF_JUMP,           'cmt': "Jump if greater than zero"}, #F20
+        {'name': 'JLZ',    'feature': CF_JUMP,           'cmt': "Jump if less than zero"}, #F28
+        {'name': 'JOV',    'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
+        {'name': 'CALL',   'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
+        {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
     ]
     
     # icode of the first instruction
@@ -251,7 +254,7 @@ class TMS57070(idaapi.processor_t):
         all information about the instruction is in 'insn' structure (insn_t).
         If zero is returned, the kernel will delete the instruction.
         """
-        logging.info("emu")
+        logging.info("notify_emu")
         
         feature = insn.get_canon_feature()
         mnemonic = insn.get_canon_mnem()
@@ -290,6 +293,16 @@ class TMS57070(idaapi.processor_t):
             pass#ua_add_dref(0, insn[0].addr, dr_W)
         if insn[1].specflag2 == 1:
             pass#ua_add_dref(0, insn[1].addr, dr_W)
+        
+        #Add data reference
+        #TODO read/write flag
+        for i in range(3):
+            op = insn[i]
+            if op.type == o_mem:
+                if (op.specval == 1):
+                    insn.add_dref(op.addr + 0x400, 0, dr_R)
+                elif (op.specval == 2):
+                    insn.add_dref(op.addr + 0x200, 0, dr_R)
         
         return 1
         
@@ -355,9 +368,6 @@ class TMS57070(idaapi.processor_t):
             else:
                 print("Wrong specval for memory region in operand")
             
-            #Add data reference
-            #TODO read/write flag
-            ctx.insn.add_dref(op.addr, 0, dr_U)
             ctx.out_addr_tag(op.addr) #Does nothing??
             
             ctx.out_symbol("(")
@@ -548,6 +558,54 @@ class TMS57070(idaapi.processor_t):
         elif self.b1 == 0xC5:
             self.insn[2].reg = self.get_register("CIR")
     
+    def ana_dmem_addressing(self, operand):
+        arg = self.b3 & 0x30
+        if (arg == 0x30 or arg == 0x20):
+            self.insn[operand].type = o_reg
+            self.insn[operand].specflag1 = 1 #Output *
+            if (self.b3 & 8 > 0):
+                self.insn[operand].reg = self.get_register("DA2")
+            else:
+                self.insn[operand].reg = self.get_register("DA1")
+            
+            #post-increment flag
+            self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
+        elif (arg == 0x10):
+            self.insn[operand].type = o_mem
+            self.insn[operand].addr = 0x000 + (self.b3 & 1 | self.b4) #0x400
+            self.insn[operand].specval = 1 #DMEM
+            
+            #TODO CA control
+    
+    def ana_cmem_addressing(self, operand):
+        arg = self.b3 & 0x30
+        if (arg == 0x30):
+            self.insn[operand].type = o_reg
+            self.insn[operand].specflag1 = 1 #Output *
+            if (self.b3 & 1 > 0):
+                self.insn[operand].reg = self.get_register("CA2")
+            else:
+                self.insn[operand].reg = self.get_register("CA1")
+            
+            #post-increment flag
+            self.insn[operand].specflag2 = self.b4 & 0x40 > 0 and 1 or 0
+        elif (arg == 0x10):
+            self.insn[operand].type = o_reg
+            self.insn[operand].specflag1 = 1 #Output *
+            if (self.b3 & 8 > 0):
+                self.insn[operand].reg = self.get_register("CA2")
+            else:
+                self.insn[operand].reg = self.get_register("CA1")
+            
+            #post-increment flag
+            self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
+        elif (arg == 0x20):
+            self.insn[operand].type = o_mem
+            self.insn[operand].addr = 0x000 + (self.b3 & 1 | self.b4) #0x200
+            self.insn[operand].specval = 2 #CMEM
+            
+            #TODO DA control
+    
     def ana_load(self):
         logging.info("ana_load")
         
@@ -580,50 +638,6 @@ class TMS57070(idaapi.processor_t):
                 self.insn[0].reg = self.get_register("MACC2")
             else:
                 self.insn[0].reg = self.get_register("MACC1")
-    
-    def ana_dmem_addressing(self, operand):
-        arg = self.b3 & 0x30
-        if (arg == 0x30 or arg == 0x20):
-            self.insn[operand].type = o_reg
-            self.insn[operand].specflag1 = 1 #Output *
-            if (self.b3 & 8 > 0):
-                self.insn[operand].reg = self.get_register("DA2")
-            else:
-                self.insn[operand].reg = self.get_register("DA1")
-            
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
-        elif (arg == 0x10):
-            self.insn[operand].type = o_mem
-            self.insn[operand].addr = (self.b3 & 1 | self.b4) #0x400 + (self.b3 & 1 | self.b4)
-            self.insn[operand].specval = 1 #DMEM
-    
-    def ana_cmem_addressing(self, operand):
-        arg = self.b3 & 0x30
-        if (arg == 0x30):
-            self.insn[operand].type = o_reg
-            self.insn[operand].specflag1 = 1 #Output *
-            if (self.b3 & 1 > 0):
-                self.insn[operand].reg = self.get_register("CA2")
-            else:
-                self.insn[operand].reg = self.get_register("CA1")
-            
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b4 & 0x40 > 0 and 1 or 0
-        elif (arg == 0x10):
-            self.insn[operand].type = o_reg
-            self.insn[operand].specflag1 = 1 #Output *
-            if (self.b3 & 8 > 0):
-                self.insn[operand].reg = self.get_register("CA2")
-            else:
-                self.insn[operand].reg = self.get_register("CA1")
-            
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
-        elif (arg == 0x20):
-            self.insn[operand].type = o_mem
-            self.insn[operand].addr = (self.b3 & 1 | self.b4) #0x200 + (self.b3 & 1 | self.b4)
-            self.insn[operand].specval = 2 #CMEM
     
     def ana_lac(self):
         logging.info("ana_lac")
@@ -736,7 +750,7 @@ class TMS57070(idaapi.processor_t):
         self.insn.itype = self.get_instruction("SUB")
         self.ana_arith()
     
-    def ana_mult(self):
+    def ana_mult_single(self):
         self.insn[1].type = o_reg
         if (self.b1 & 0x01 > 0):
             self.insn[1].reg = self.get_register("ACC2")
@@ -751,53 +765,44 @@ class TMS57070(idaapi.processor_t):
         else:
             self.insn[2].reg = self.get_register("MACC1")
     
-    def ana_mult_cmem(self):
+    def ana_mult_cmem(self, opcode):
         logging.info("ana_mult_cmem")
+        self.insn.itype = self.get_instruction(opcode)
         
         self.ana_cmem_addressing(0)
-        self.ana_mult()
+        self.ana_mult_single()
         
-    def ana_mult_dmem(self):
+    def ana_mult_dmem(self, opcode):
         logging.info("ana_mult_dmem")
+        self.insn.itype = self.get_instruction(opcode)
         
         self.ana_dmem_addressing(0)
-        self.ana_mult()
+        self.ana_mult_single()
     
-    def ana_mpy40(self):
-        logging.info("ana_mpy40")
-        self.insn.itype = self.get_instruction("MPY(1)")
+    def ana_mult_dual(self, opcode):
+        logging.info("ana_mult_dual")
+        self.insn.itype = self.get_instruction(opcode)
         
-        self.ana_mult_cmem()
+        #self.ana_dual_addressing(0, 1)
+        self.ana_cmem_addressing(0)
+        self.ana_dmem_addressing(1)
+        
+        self.insn[2].type = o_reg
+        if (self.b2 & 0x40 > 0):
+            self.insn[2].reg = self.get_register("MACC2")
+        else:
+            self.insn[2].reg = self.get_register("MACC1")
     
-    def ana_mpy42(self):
-        logging.info("ana_mpy42")
-        self.insn.itype = self.get_instruction("MPY(2)")
+    def ana_extern(self):
+        logging.info("ana_extern")
+        if self.b2 & 0x40 > 0:
+            self.insn.itype = self.get_instruction("WRE")
+            self.ana_dmem_addressing(0)
+        else:
+            self.insn.itype = self.get_instruction("RDE")
+            self.ana_cmem_addressing(0)
+            # TODO: Investigation and addressing improvements
         
-        self.ana_mult_dmem()
-        
-    def ana_mac50(self):
-        logging.info("ana_mac50")
-        self.insn.itype = self.get_instruction("MAC(1)")
-        
-        self.ana_mult_cmem()
-    
-    def ana_mac52(self):
-        logging.info("ana_mac52")
-        self.insn.itype = self.get_instruction("MAC(2)")
-        
-        self.ana_mult_dmem()
-        
-    def ana_mac5C(self):
-        logging.info("ana_mac5C")
-        self.insn.itype = self.get_instruction("MACU(1)")
-        
-        self.ana_mult_cmem()
-    
-    def ana_mac5E(self):
-        logging.info("ana_mac5E")
-        self.insn.itype = self.get_instruction("MACU(2)")
-        
-        self.ana_mult_dmem()
     
     def notify_ana(self, insn):
         logging.info("================= notify_ana =================")
@@ -847,26 +852,28 @@ class TMS57070(idaapi.processor_t):
         #    
         #elif opcode1 == 0x32:
         #    
+        elif opcode1 == 0x39:
+            self.ana_extern()
         elif opcode1 == 0x40 or opcode1 == 0x41:
-            self.ana_mpy40()
+            self.ana_mult_cmem("MPY(1)")
         elif opcode1 == 0x42 or opcode1 == 0x43:
-            self.ana_mpy42()
+            self.ana_mult_dual("MPY(2)")
         elif opcode1 == 0x50 or opcode1 == 0x51:
-            self.ana_mac50()
+            self.ana_mult_cmem("MAC(1)")
         elif opcode1 == 0x52 or opcode1 == 0x53:
-            self.ana_mac52()
+            self.ana_mult_dmem("MAC(2)")
         elif opcode1 == 0x5C or opcode1 == 0x5D:
-            self.ana_mac5C()
+            self.ana_mult_cmem("MACU(1)")
         elif opcode1 == 0x5E or opcode1 == 0x5F:
-            self.ana_mac5E()
-        #elif opcode1 == 0x6C:
-        #    
-        #elif opcode1 == 0x6D:
-        #    
-        #elif opcode1 == 0x6E:
-        #    
-        #elif opcode1 == 0x6F:
-            
+            self.ana_mult_dmem("MACU(2)")
+        elif opcode1 == 0x6C:
+            self.ana_mult_dual("MAC(3)")
+        elif opcode1 == 0x6D:
+            self.ana_mult_dual("MACU(3)")
+        elif opcode1 == 0x6E:
+            self.ana_mult_dual("MACU(4)")
+        elif opcode1 == 0x6F:
+            self.ana_mult_dual("MACU(5)")
         elif opcode1 == 0xC1:
             self.ana_lri()
         elif opcode1 >= 0xC2 and opcode1 <= 0xC5:
@@ -885,9 +892,12 @@ class TMS57070(idaapi.processor_t):
             #jumps
             self.ana_jumps()
         else:
-            logging.info("unknown instruction")
-            insn.size = 0
-            return 0
+            #logging.info("unknown instruction")
+            #insn.size = 0
+            #return 0
+            insn.itype = self.get_instruction("UNKN")
+            insn[0].type = o_imm
+            insn[0].value = instruction_word
         
         # Return decoded instruction size or zero
         return insn.size
