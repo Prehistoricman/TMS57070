@@ -7,5 +7,5 @@ Tools &amp; docs for the TI DSP TMS57070 including IDA disassembler
   * Not complete - currently missing:
     * 2nd instruction support
     * Some incrementing/addressing modes
-    * Lots of opcodes (to be implemented)
-    * Some opcodes (unknown)
+    * Some opcodes (to be implemented)
+    * Some opcodes (to be discovered)
