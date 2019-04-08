@@ -115,6 +115,7 @@ class TMS57070(idaapi.processor_t):
         "DIR",
         "DIR1",
         "DIR2",
+        "XRD", #External memory read register
         "unkn" #placeholder for unknown register
     ]
     
@@ -169,8 +170,8 @@ class TMS57070(idaapi.processor_t):
         #{'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero accumulator if CMEM less than accumulator"}, #2A
         {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND accumulator with MACC"}, #2B
         {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR accumulator with CMEM"}, #32
-        {'name': 'RDE',    'feature': CF_USE1,           'cmt': "Read from external memory at address from CMEM"}, #39
-        {'name': 'WRE',    'feature': CF_USE1,           'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
+        {'name': 'RDE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Read from external memory at address from CMEM"}, #39
+        {'name': 'WRE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
         {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
         {'name': 'MPYU(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC"}, #44, 45
         {'name': 'MPYU(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned ACC"}, #48, 49
@@ -206,6 +207,7 @@ class TMS57070(idaapi.processor_t):
         {'name': 'JGZ',    'feature': CF_JUMP,           'cmt': "Jump if greater than zero"}, #F20
         {'name': 'JLZ',    'feature': CF_JUMP,           'cmt': "Jump if less than zero"}, #F28
         {'name': 'JOV',    'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
+        {'name': 'JUNKN',  'feature': CF_JUMP,           'cmt': "Jump of unknown function"}, #F38, 40, 48, 50
         {'name': 'CALL',   'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
         {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
     ]
@@ -278,16 +280,13 @@ class TMS57070(idaapi.processor_t):
             uncond_jmp = True
         
         #is it a jump?
-        jmps = ["JMP", "JZ", "JNZ", "JGZ", "JLZ"]
-        if mnemonic in jmps:
-            if insn[0].addr != 0x0:
-                add_cref(insn.ea, insn[0].addr, fl_JN)
+        if feature & CF_JUMP > 0: #If the instruction has the CF_JUMP flag
+            add_cref(insn.ea, insn[0].addr, fl_JN)
         
         #is it a call?
         calls = ["CALL"]
         if mnemonic in calls:
-            if insn[0].addr != 0x0:
-                add_cref(insn.ea, insn[0].addr, fl_CN)
+            add_cref(insn.ea, insn[0].addr, fl_CN)
         
         #is it a repeat?
         reps = ["RPTB", "RPTK"]
@@ -474,6 +473,8 @@ class TMS57070(idaapi.processor_t):
             self.insn.itype = self.get_instruction("JOV")
         elif condition == 0x80: #call
             self.insn.itype = self.get_instruction("CALL")
+        else:
+            self.insn.itype = self.get_instruction("JUNKN")
             
     def ana_lri_long(self):
         #load register with immediate
@@ -844,12 +845,17 @@ class TMS57070(idaapi.processor_t):
     
     def ana_extern(self):
         logging.info("ana_extern")
+        
         if self.b2 & 0x40 > 0:
             self.insn.itype = self.get_instruction("WRE")
             self.ana_dmem_addressing(0)
+            self.ana_cmem_addressing(1)
         else:
             self.insn.itype = self.get_instruction("RDE")
             self.ana_cmem_addressing(0)
+            
+            self.insn[1].type = o_reg
+            self.insn[1].reg = self.get_register("XRD")
             # TODO: Investigation and addressing improvements
         
     def ana_loadmacc(self, opcode):
@@ -989,7 +995,7 @@ class TMS57070(idaapi.processor_t):
             #jumps
             self.ana_jumps()
         else:
-            #logging.info("unknown instruction")
+            logging.info("unknown instruction "  + hex(instruction_word, 8))
             #insn.size = 0
             #return 0
             insn.itype = self.get_instruction("UNKN")
