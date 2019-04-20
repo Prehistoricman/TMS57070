@@ -197,8 +197,8 @@ class TMS57070(idaapi.processor_t):
         {'name': 'LML',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load low MACC with MEM or ACC"}, #7C, 7D
         {'name': 'LRI',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
         {'name': 'LRIAE',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register if accumulator greater than or equal to zero"}, #C14
-        {'name': 'RPTK',   'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next instruction"}, #E0
-        {'name': 'RPTB',   'feature': CF_USE1 | CF_JUMP, 'cmt': "Repeat next block"}, #E4
+        {'name': 'RPTK',   'feature': CF_USE1,           'cmt': "Repeat next instruction"}, #E0
+        {'name': 'RPTB',   'feature': CF_USE1,           'cmt': "Repeat next block"}, #E4
         {'name': 'RET',    'feature': CF_STOP,           'cmt': "Return"}, #EC
         {'name': 'RETI',   'feature': CF_STOP,           'cmt': "Return from interrupt"}, #EE
         {'name': 'JMP',    'feature': CF_JUMP,           'cmt': "Jump unconditionally"}, #F0
