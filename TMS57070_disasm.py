@@ -167,9 +167,9 @@ class TMS57070(idaapi.processor_t):
         {'name': 'ZACC',   'feature': CF_USE1,           'cmt': "Zero ACC"}, #1D
         {'name': 'ADD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
         {'name': 'SUB',    'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
-        #{'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero accumulator if CMEM less than accumulator"}, #2A
-        {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND accumulator with MACC"}, #2B
-        {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR accumulator with CMEM"}, #32
+        {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND ACC or MACC from MEM, store result in ACC"}, #28-2B
+        {'name': 'OR',     'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical OR ACC or MACC from MEM, store result in ACC"}, #2C-2F
+        {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR ACC or MACC from MEM, store result in ACC"}, #30-33
         {'name': 'RDE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Read from external memory at address from CMEM"}, #39
         {'name': 'WRE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
         {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
@@ -788,6 +788,21 @@ class TMS57070(idaapi.processor_t):
         self.insn.itype = self.get_instruction("SUB")
         self.ana_arith()
     
+    def ana_and(self):
+        logging.info("ana_and")
+        self.insn.itype = self.get_instruction("AND")
+        self.ana_arith()
+    
+    def ana_or(self):
+        logging.info("ana_or")
+        self.insn.itype = self.get_instruction("OR")
+        self.ana_arith()
+    
+    def ana_xor(self):
+        logging.info("ana_xor")
+        self.insn.itype = self.get_instruction("XOR")
+        self.ana_arith()
+    
     def ana_mult_single(self):
         self.insn[1].type = o_reg
         if (self.b1 & 0x01 > 0):
@@ -925,12 +940,12 @@ class TMS57070(idaapi.processor_t):
             self.ana_add()
         elif opcode1 >= 0x24 and opcode1 <= 0x27:
             self.ana_sub()
-        #elif opcode1 == 0x2A:
-        #    
-        #elif opcode1 == 0x2B:
-        #    
-        #elif opcode1 == 0x32:
-        #    
+        elif opcode1 >= 0x28 and opcode1 <= 0x2B:
+            self.ana_and()
+        elif opcode1 >= 0x2C and opcode1 <= 0x2F:
+            self.ana_or()
+        elif opcode1 >= 0x30 and opcode1 <= 0x33:
+            self.ana_xor()
         elif opcode1 == 0x39:
             self.ana_extern()
         elif opcode1 == 0x40 or opcode1 == 0x41:
