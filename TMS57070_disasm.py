@@ -11,7 +11,7 @@ import ida_ida
 
 import logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename = "disasm.log", level = logging.ERROR)
+logging.basicConfig(filename = "disasm.log", level = logging.INFO)
 
 # define RAM starting at 18000h of size 100h
 # define ROM starting at 0 of size 12100h
@@ -98,6 +98,8 @@ class TMS57070(idaapi.processor_t):
         "ACC2",
         "MACC1",
         "MACC2",
+        "MACC1L",
+        "MACC2L",
         "CA", #CA and DA
         "CA1",
         "CA2",
@@ -116,6 +118,16 @@ class TMS57070(idaapi.processor_t):
         "DIR1",
         "DIR2",
         "XRD", #External memory read register
+        "AX1R",#Right and left outputs
+        "AX1L",
+        "AX2R",
+        "AX2L",
+        "AX3R",
+        "AX3L",
+        "AR1R",#Right and left inputs
+        "AR1L",
+        "AR2R",
+        "AR2L",
         "unkn" #placeholder for unknown register
     ]
     
@@ -333,7 +345,7 @@ class TMS57070(idaapi.processor_t):
         
         if optype == o_reg:
             #Special case for SHACC and SHMAC
-            if (ctx.insn.get_canon_mnem() in ["SHACC", "SHMAC"]):
+            if (ctx.insn.get_canon_mnem() in ["SHACC", "SHMAC"] and op.n == 0):
                 ctx.out_register(self.regNames[op.reg])
                 ctx.out_char(" ")
                 if (op.specval == 1):
@@ -343,7 +355,7 @@ class TMS57070(idaapi.processor_t):
                     ctx.out_symbol(">")
                     ctx.out_symbol(">")
                 else:
-                    logger.error("notify_out_operand No specval for SHACC")
+                    logger.error("notify_out_operand No specval for SHACC (specval = " + str(op.specval) + ")")
                 ctx.out_char(" ")
                 ctx.out_symbol("1")
                 
@@ -378,7 +390,7 @@ class TMS57070(idaapi.processor_t):
             elif (op.specval == 2):
                 ctx.out_printf("CMEM")
             else:
-                print("Wrong specval for memory region in operand")
+                logging.error("notify_out_operand Wrong specval for memory region in operand")
             
             ctx.out_addr_tag(op.addr) #Does nothing??
             
@@ -396,7 +408,7 @@ class TMS57070(idaapi.processor_t):
             ctx.out_symbol(")")
             
         else:
-            print("op type " + optype + " failed in outop")
+            logging.error("notify_out_operand op type " + str(optype) + " failed in outop")
             return False
         
         return True
@@ -427,6 +439,15 @@ class TMS57070(idaapi.processor_t):
         
         #Check for 2nd instruction
         #output MOV and the rest of operands
+        if insn[4].type != o_void:
+            #print 2nd instruction
+            ctx.out_spaces(35) #2nd instruc margin
+            
+            ctx.out_printf("MOV ")
+            ctx.out_one_operand(4)
+            ctx.out_symbol(",")
+            ctx.out_char(" ")
+            ctx.out_one_operand(5) #Should always be 2
         
         #ctx.set_gen_cmt() #Does nothing??
         ctx.flush_outbuf()
@@ -898,6 +919,82 @@ class TMS57070(idaapi.processor_t):
         else:
             self.insn[1].reg = self.get_register("MACC1")
     
+    def ana2_store(self, regname1, regname2):
+        self.insn[4].type = o_reg
+        if (self.b3 & 0x40 > 0):
+            self.insn[4].reg = self.get_register(regname2)
+        else:
+            self.insn[4].reg = self.get_register(regname1)
+        
+        if (self.b3 & 0x80 > 0):
+            self.ana_cmem_addressing(5)
+        else:
+            self.ana_dmem_addressing(5)
+    
+    def ana2_output(self):
+        self.insn[4].type = o_reg
+        if (self.b3 & 0x40 > 0):
+            self.insn[4].reg = self.get_register("MACC2")
+        else:
+            self.insn[4].reg = self.get_register("MACC1")
+        
+        self.insn[5].type = o_reg
+        if (self.b3 & 0x80 > 0):
+            self.insn[5].reg = self.get_register("AX1R")
+        else:
+            self.insn[5].reg = self.get_register("AX1L")
+        
+    def ana2_input(self):
+        self.insn[4].type = o_reg
+        if (self.b3 & 0x80 > 0):
+            self.insn[4].reg = self.get_register("AR1R")
+        else:
+            self.insn[4].reg = self.get_register("AR1L")
+        
+        self.ana_dmem_addressing(5) #TODO investigation for C5, CD
+    
+    def ana2_extern(self):
+        self.insn[4].type = o_reg
+        self.insn[4].reg = self.get_register("XRD")
+        
+        self.ana_dmem_addressing(5)
+    
+    def ana2_hir(self):
+        if (self.b3 & 0x80 > 0):
+            self.ana_cmem_addressing(4)
+        else:
+            self.ana_dmem_addressing(4)
+        
+        self.insn[5].type = o_reg
+        self.insn[5].reg = self.get_register("HIR")
+        
+    def ana2_dereference(self):
+        self.ana_cmem_addressing(4)
+        
+        self.insn[5].type = o_reg
+        if (self.b3 & 0x80 > 0):
+            self.insn[5].reg = self.get_register("CA2")
+        else:
+            self.insn[5].reg = self.get_register("CA1")
+        
+    def ana2(self, opcode2):
+        if opcode2 == 0x01:
+            self.ana2_store("ACC1", "ACC2")
+        elif opcode2 == 0x02:
+            self.ana2_store("MACC1", "MACC2")
+        elif opcode2 == 0x03:
+            self.ana2_store("MACC1L", "MACC2L")
+        elif opcode2 == 0x0C:
+            self.ana2_input()
+        elif opcode2 == 0x09:
+            self.ana2_dereference()
+        elif opcode2 == 0x18:
+            self.ana2_output()
+        elif opcode2 == 0x20:
+            self.ana2_extern()
+        elif opcode2 == 0x26:
+            self.ana2_hir()
+    
     def notify_ana(self, insn):
         logging.info("================= notify_ana =================")
         
@@ -1016,6 +1113,10 @@ class TMS57070(idaapi.processor_t):
             insn.itype = self.get_instruction("UNKN")
             insn[0].type = o_imm
             insn[0].value = instruction_word
+        
+        #Analyse 2nd instruction
+        if opcode1 >= 0 and opcode1 <= 0x7F: #Do not analyse single-instruction words
+            self.ana2(opcode2)
         
         # Return decoded instruction size or zero
         return insn.size
