@@ -11,7 +11,7 @@ import ida_ida
 
 import logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename = "disasm.log", level = logging.INFO)
+logging.basicConfig(filename = "disasm.log", level = logging.ERROR)
 
 # define RAM starting at 18000h of size 100h
 # define ROM starting at 0 of size 12100h
@@ -128,6 +128,7 @@ class TMS57070(idaapi.processor_t):
         "AR1L",
         "AR2R",
         "AR2L",
+        "MOSM",#MAC output shifter mode
         "unkn" #placeholder for unknown register
     ]
     
@@ -320,7 +321,7 @@ class TMS57070(idaapi.processor_t):
         
         #Add data reference
         #TODO read/write flag
-        for i in range(3):
+        for i in range(6):
             op = insn[i]
             if op.type == o_mem:
                 if (op.specval == 1):
@@ -371,7 +372,11 @@ class TMS57070(idaapi.processor_t):
             
         elif optype == o_imm:
             ctx.out_symbol("#")
-            ctx.out_value(op, OOFW_IMM) #Hack: OOFW_IMM does not work
+            if (op.specflag1 == 1):
+                #Output as signed
+                ctx.out_value(op, OOFW_IMM | OOF_SIGNED)
+            else:
+                ctx.out_value(op, OOFW_IMM)
             logging.debug("notify_out_operand immediate value: " + hex(ctx.insn[0].value))
             
         elif optype == o_near:
@@ -449,6 +454,8 @@ class TMS57070(idaapi.processor_t):
             ctx.out_char(" ")
             ctx.out_one_operand(5) #Should always be 2
         
+        ctx.out_spaces(58) #put comments at the same position
+        ctx.out_symbol("|")
         #ctx.set_gen_cmt() #Does nothing??
         ctx.flush_outbuf()
     
@@ -766,9 +773,16 @@ class TMS57070(idaapi.processor_t):
         self.insn.itype = self.get_instruction("ZMACC")
         
         self.insn[0].type = o_reg
-        self.insn[0].reg = self.get_register("MACC1")
-        self.insn[1].type = o_reg
-        self.insn[1].reg = self.get_register("MACC2")
+        
+        if self.b1 == 0x73: #For singular zmacc
+            if self.b2 & 0x40 > 0:
+                self.insn[0].reg = self.get_register("MACC2")
+            else:
+                self.insn[0].reg = self.get_register("MACC1")
+        else: #For dual zmacc
+            self.insn[0].reg = self.get_register("MACC1")
+            self.insn[1].type = o_reg
+            self.insn[1].reg = self.get_register("MACC2")
     
     def ana_arith(self):
         logging.info("ana_arith")
@@ -931,18 +945,28 @@ class TMS57070(idaapi.processor_t):
         else:
             self.ana_dmem_addressing(5)
     
-    def ana2_output(self):
+    def ana2_output(self, opcode2):
         self.insn[4].type = o_reg
         if (self.b3 & 0x40 > 0):
             self.insn[4].reg = self.get_register("MACC2")
         else:
             self.insn[4].reg = self.get_register("MACC1")
         
+        output_port = ""
+        if opcode2 == 0x18:
+            output_port = "AX1"
+        elif opcode2 == 0x19:
+            output_port = "AX2"
+        elif opcode2 == 0x1A:
+            output_port = "AX3"
+        else:
+            logging.error("ana2_output Wrong 2nd instruction used on this function (opcode2 = " + str(opcode2) + ")")
+        
         self.insn[5].type = o_reg
         if (self.b3 & 0x80 > 0):
-            self.insn[5].reg = self.get_register("AX1R")
+            self.insn[5].reg = self.get_register(output_port + "R")
         else:
-            self.insn[5].reg = self.get_register("AX1L")
+            self.insn[5].reg = self.get_register(output_port + "L")
         
     def ana2_input(self):
         self.insn[4].type = o_reg
@@ -968,14 +992,37 @@ class TMS57070(idaapi.processor_t):
         self.insn[5].type = o_reg
         self.insn[5].reg = self.get_register("HIR")
         
-    def ana2_dereference(self):
+    def ana2_dereference(self, opcode2):
         self.ana_cmem_addressing(4)
         
+        mem = "C" if opcode2 == 0x9 else "D"
+        
         self.insn[5].type = o_reg
-        if (self.b3 & 0x80 > 0):
-            self.insn[5].reg = self.get_register("CA2")
+        if (self.b3 & 0x40 > 0): #Store in CIR
+            if (self.b3 & 0x80 > 0):
+                self.insn[5].reg = self.get_register(mem + "IR2")
+            else:
+                self.insn[5].reg = self.get_register(mem + "IR1")
+        else: #Store in CA
+            if (self.b3 & 0x80 > 0):
+                self.insn[5].reg = self.get_register(mem + "A2")
+            else:
+                self.insn[5].reg = self.get_register(mem + "A1")
+        
+    def ana2_macshift(self):
+        self.insn[4].type = o_reg
+        self.insn[4].reg = self.get_register("MOSM")
+        
+        self.insn[5].type = o_imm
+        self.insn[5].specflag1 = 1 #Output sign for -8
+        
+        modes = [0, 2, 4, -8]
+        modeselect = self.b3 >> 6
+        if modeselect <= 3 and modeselect >= 0:
+            self.insn[5].value = modes[modeselect]
         else:
-            self.insn[5].reg = self.get_register("CA1")
+            self.insn[5].value = 0
+            logging.error("ana2_macshift modeselect out of array bounds")
         
     def ana2(self, opcode2):
         if opcode2 == 0x01:
@@ -986,14 +1033,22 @@ class TMS57070(idaapi.processor_t):
             self.ana2_store("MACC1L", "MACC2L")
         elif opcode2 == 0x0C:
             self.ana2_input()
-        elif opcode2 == 0x09:
-            self.ana2_dereference()
-        elif opcode2 == 0x18:
-            self.ana2_output()
+        elif opcode2 == 0x08 or opcode2 == 0x09:
+            self.ana2_dereference(opcode2)
+        elif opcode2 >= 0x18 and opcode2 <= 0x1A:
+            self.ana2_output(opcode2)
         elif opcode2 == 0x20:
             self.ana2_extern()
         elif opcode2 == 0x26:
             self.ana2_hir()
+        elif opcode2 == 0x29:
+            self.ana2_macshift()
+        elif opcode2 != 0:
+            #Unknown 2nd instruction
+            self.insn[4].type = o_reg
+            self.insn[5].type = o_reg
+            self.insn[4].reg = self.get_register("unkn")
+            self.insn[5].reg = self.get_register("unkn")
     
     def notify_ana(self, insn):
         logging.info("================= notify_ana =================")
@@ -1083,6 +1138,8 @@ class TMS57070(idaapi.processor_t):
             self.ana_mult_dual("MACU(5)")
         elif opcode1 == 0x72:
             self.ana_shmac()
+        elif opcode1 == 0x73 and self.b2 < 0x80:
+            self.ana_zmacc()
         elif opcode1 == 0x78 or opcode1 == 0x79:
             self.ana_loadmacc("LMH")
         elif opcode1 == 0x7A or opcode1 == 0x7B:
