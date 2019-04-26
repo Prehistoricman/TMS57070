@@ -177,7 +177,7 @@ class TMS57070(idaapi.processor_t):
         {'name': 'INC',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and increment"}, #14-17
         {'name': 'DEC',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and decrement"}, #18-1B
         {'name': 'SHACC',  'feature': CF_USE1 | CF_SHFT, 'cmt': "Shift ACC once left or right"}, #1C
-        {'name': 'ZACC',   'feature': CF_USE1,           'cmt': "Zero ACC"}, #1D
+        {'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero ACC"}, #1D
         {'name': 'ADD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
         {'name': 'SUB',    'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
         {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND ACC or MACC from MEM, store result in ACC"}, #28-2B
@@ -480,7 +480,7 @@ class TMS57070(idaapi.processor_t):
     def ana_jumps(self):
         logging.info("ana_jumps")
         self.insn[0].type = o_near #All jumps are intra-segment
-        self.insn[0].addr = self.b4 + (self.b3 << 8) & 0x1FF #immediate jump location
+        self.insn[0].addr = (self.b3 & 1) << 8 | self.b4 #immediate jump location
         
         logging.debug("ana_jumps address: 0x%0.3X" % self.insn[0].addr)
         
@@ -722,7 +722,7 @@ class TMS57070(idaapi.processor_t):
             self.insn[1].addr = self.insn.ea + self.insn.size
         elif (self.b1 == 0xE4):
             self.insn.itype = self.get_instruction("RPTB")
-            self.insn[1].addr = self.b3 & 1 | self.b4
+            self.insn[1].addr = (self.b3 & 1) << 8 | self.b4
         else:
             logging.error("ana_repeat called for non-repeat instruction")
         
@@ -763,10 +763,18 @@ class TMS57070(idaapi.processor_t):
         self.insn.itype = self.get_instruction("ZACC")
         
         self.insn[0].type = o_reg
-        if (self.b2 & 0x40 > 0):
-            self.insn[0].reg = self.get_register("ACC2")
-        else:
+        
+        if self.b1 == 0x1D: #Single accumulator
+            if (self.b2 & 0x40 > 0):
+                self.insn[0].reg = self.get_register("ACC2")
+            else:
+                self.insn[0].reg = self.get_register("ACC1")
+        elif self.b1 == 0x1F: #Both accumulators
             self.insn[0].reg = self.get_register("ACC1")
+            self.insn[1].type = o_reg
+            self.insn[1].reg = self.get_register("ACC2")
+        else:
+            logging.error("ana_zacc used on non-zacc instruction (opcode = " + str(self.b1) + ")")
     
     def ana_zmacc(self):
         logging.info("ana_zmacc")
@@ -1086,7 +1094,7 @@ class TMS57070(idaapi.processor_t):
             self.ana_dec()
         elif opcode1 == 0x1C:
             self.ana_shacc()
-        elif opcode1 == 0x1D:
+        elif opcode1 == 0x1D or opcode1 == 0x1F:
             self.ana_zacc()
         elif opcode1 >= 0x20 and opcode1 <= 0x23:
             self.ana_add()
