@@ -180,9 +180,11 @@ class TMS57070(idaapi.processor_t):
         {'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero ACC"}, #1D
         {'name': 'ADD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
         {'name': 'SUB',    'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
-        {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND ACC or MACC from MEM, store result in ACC"}, #28-2B
-        {'name': 'OR',     'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical OR ACC or MACC from MEM, store result in ACC"}, #2C-2F
-        {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR ACC or MACC from MEM, store result in ACC"}, #30-33
+        {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND ACC or MACC with MEM, store result in ACC"}, #28-2B
+        {'name': 'OR',     'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical OR ACC or MACC with MEM, store result in ACC"}, #2C-2F
+        {'name': 'XOR',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical XOR ACC or MACC with MEM, store result in ACC"}, #30-33
+        {'name': 'CMP(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Compare ACC with MEM"}, #34, 36
+        {'name': 'CMP(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Compare MACC with MEM"}, #35, 37
         {'name': 'RDE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Read from external memory at address from CMEM"}, #39
         {'name': 'WRE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
         {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
@@ -941,6 +943,34 @@ class TMS57070(idaapi.processor_t):
         else:
             self.insn[1].reg = self.get_register("MACC1")
     
+    def ana_cmp(self):
+        logging.info("ana_cmp")
+        
+        if self.b1 & 2 == 0:
+            #34 and 35
+            self.ana_dmem_addressing(0)
+        else:
+            #36 and 37
+            self.ana_cmem_addressing(0)
+        
+        self.insn[1].type = o_reg
+        if self.b1 & 1 == 0:
+            #34 and 36 = ACC
+            self.insn.itype = self.get_instruction("CMP(1)")
+            
+            if (self.b2 & 0x80 > 0):
+                self.insn[1].reg = self.get_register("ACC2")
+            else:
+                self.insn[1].reg = self.get_register("ACC1")
+        else:
+            #35 and 37 = MACC
+            self.insn.itype = self.get_instruction("CMP(2)")
+            
+            if (self.b2 & 0x80 > 0):
+                self.insn[1].reg = self.get_register("MACC2")
+            else:
+                self.insn[1].reg = self.get_register("MACC1")
+    
     def ana2_store(self, regname1, regname2):
         self.insn[4].type = o_reg
         if (self.b3 & 0x40 > 0):
@@ -1106,6 +1136,8 @@ class TMS57070(idaapi.processor_t):
             self.ana_or()
         elif opcode1 >= 0x30 and opcode1 <= 0x33:
             self.ana_xor()
+        elif opcode1 >= 0x34 and opcode1 <= 0x37:
+            self.ana_cmp()
         elif opcode1 == 0x39:
             self.ana_extern()
         elif opcode1 == 0x40 or opcode1 == 0x41:
