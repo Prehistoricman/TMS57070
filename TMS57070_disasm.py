@@ -619,7 +619,7 @@ class TMS57070(idaapi.processor_t):
             self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
         elif (arg == 0x10):
             self.insn[operand].type = o_mem
-            self.insn[operand].addr = 0x000 + (self.b3 & 1 | self.b4) #0x400
+            self.insn[operand].addr = 0x000 + (self.b3 & 1) << 8 | self.b4 #0x400
             self.insn[operand].specval = 1 #DMEM
             
             #TODO CA control
@@ -648,7 +648,7 @@ class TMS57070(idaapi.processor_t):
             self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
         elif (arg == 0x20):
             self.insn[operand].type = o_mem
-            self.insn[operand].addr = 0x000 + (self.b3 & 1 | self.b4) #0x200
+            self.insn[operand].addr = 0x000 + (self.b3 & 1) << 8 | self.b4 #0x200
             self.insn[operand].specval = 2 #CMEM
             
             #TODO DA control
