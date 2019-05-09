@@ -26,7 +26,7 @@ def hex(int, width = None):
         return ("0x%0." + str(width) + "X") % int
 
 # ----------------------------------------------------------------------
-class TMS57070(idaapi.processor_t):
+class TMS57070_processor(idaapi.processor_t):
     
     # IDP id ( Numbers above 0x8000 are reserved for the third-party modules)
     id = 0x8000 + 57070
@@ -57,7 +57,7 @@ class TMS57070(idaapi.processor_t):
         "header": [".???"],
         "flag": AS_NCHRE | ASH_HEXF0 | ASD_DECF0 | ASO_OCTF0 | ASB_BINF0 | AS_NOTAB,
         "uflag": 0,
-        "name": "??? assembler",
+        "name": "TMS57070 assembler",
         "origin": ".org",
         "end": ".end",
         "cmnt": ";",
@@ -128,7 +128,9 @@ class TMS57070(idaapi.processor_t):
         "AR1L",
         "AR2R",
         "AR2L",
-        "MOSM",#MAC output shifter mode
+        "MOSM",#MACC output shifter mode
+        "MOVM",#MACC overflow clamp mode
+        "AOVM",#ACC overflow clamp mode
         "unkn" #placeholder for unknown register
     ]
     
@@ -221,9 +223,12 @@ class TMS57070(idaapi.processor_t):
         {'name': 'JNZ',    'feature': CF_JUMP,           'cmt': "Jump if not zero"}, #F18
         {'name': 'JGZ',    'feature': CF_JUMP,           'cmt': "Jump if greater than zero"}, #F20
         {'name': 'JLZ',    'feature': CF_JUMP,           'cmt': "Jump if less than zero"}, #F28
-        {'name': 'JOV',    'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
-        {'name': 'JUNKN',  'feature': CF_JUMP,           'cmt': "Jump of unknown function"}, #F38, 40, 48, 50
+        {'name': 'JAOV',   'feature': CF_JUMP,           'cmt': "Jump if accumulator overflow"}, #F30
+        {'name': 'JMOV',   'feature': CF_JUMP,           'cmt': "Jump if MACC overflow"}, #F48
+        {'name': 'JBIOZ',  'feature': CF_JUMP,           'cmt': "Jump if BIO low"}, #F58
+        {'name': 'JUNKN',  'feature': CF_JUMP,           'cmt': "Jump of unknown function"}, #F38, 40, 50
         {'name': 'CALL',   'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
+        {'name': 'CUNKN',  'feature': CF_CALL,           'cmt': "Call of unknown function"}, #F88, 90
         {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
     ]
     
@@ -244,7 +249,6 @@ class TMS57070(idaapi.processor_t):
         logging.info("notify_init")
         ida_ida.cvar.inf.set_wide_high_byte_first(True)  #big endian for words
         ida_ida.cvar.inf.set_be(True)  #AWFUL documentation
-        logging.debug("notify_init big endian: " + str(ida_ida.cvar.inf.is_wide_high_byte_first()))
         return True
     
     def notify_newfile(self, filename):
@@ -277,6 +281,7 @@ class TMS57070(idaapi.processor_t):
         
         idaapi.add_segm_ex(DMEM, "DMEM", "DATA", ADDSEG_OR_DIE)
     
+    repeats = {}
     def notify_emu(self, insn):
         """
         Emulate instruction, create cross-references, plan to analyze
@@ -299,8 +304,7 @@ class TMS57070(idaapi.processor_t):
             add_cref(insn.ea, insn[0].addr, fl_JN)
         
         #is it a call?
-        calls = ["CALL"]
-        if mnemonic in calls:
+        if feature & CF_CALL > 0: #If the instruction has the CF_CALL flag
             add_cref(insn.ea, insn[0].addr, fl_CN)
         
         #is it a repeat?
@@ -308,7 +312,11 @@ class TMS57070(idaapi.processor_t):
         if mnemonic in reps:
             if insn[1].addr != 0x0:
                 #Add flow from end of loop to next instruction
-                add_cref(insn[1].addr, insn.ea + insn.size, fl_JN)
+                #add_cref(insn[1].addr, insn.ea + insn.size, fl_JN)
+                self.repeats[insn[1].addr] = insn.ea + insn.size
+        
+        if insn.ea in self.repeats.keys():
+            add_cref(insn.ea, self.repeats[insn.ea], fl_JN)
         
         #Does the processor go to the next instruction?
         flow = (feature & CF_STOP == 0) and not uncond_jmp
@@ -462,7 +470,12 @@ class TMS57070(idaapi.processor_t):
         ctx.flush_outbuf()
     
     def notify_get_autocmt(self, insn):
-        pass
+        name = insn.get_canon_mnem()
+        #Search instruc for this name
+        for entry in self.instruc:
+            if entry["name"] == name:
+                return entry["cmt"]
+        return "No comment for this instruction"
     
     #gets an instruction table index from instruc by name
     def get_instruction(self, name):
@@ -476,7 +489,7 @@ class TMS57070(idaapi.processor_t):
         for x in self.regNames:
             if x == name:
                 return self.regNames.index(x)
-        return -1
+        raise Exception("Could not find register %s" % name)
     
     
     def ana_jumps(self):
@@ -500,9 +513,19 @@ class TMS57070(idaapi.processor_t):
         elif condition == 0x28: #jump if less than zero
             self.insn.itype = self.get_instruction("JLZ")
         elif condition == 0x30: #jump if acc overflow
-            self.insn.itype = self.get_instruction("JOV")
+            self.insn.itype = self.get_instruction("JAOV")
+        elif condition == 0x48: #jump if macc overflow
+            self.insn.itype = self.get_instruction("JMOV")
+        elif condition == 0x58: #jump if BIO low
+            self.insn.itype = self.get_instruction("JBIOZ")
         elif condition == 0x80: #call
             self.insn.itype = self.get_instruction("CALL")
+        elif condition == 0x88: #call
+            self.insn.itype = self.get_instruction("CUNKN")
+        elif condition == 0x90: #call
+            self.insn.itype = self.get_instruction("CUNKN")
+        elif condition == 0x98: #call
+            self.insn.itype = self.get_instruction("CUNKN")
         else:
             self.insn.itype = self.get_instruction("JUNKN")
             
@@ -983,6 +1006,15 @@ class TMS57070(idaapi.processor_t):
         else:
             self.ana_dmem_addressing(5)
     
+    def ana2_store_cmem(self, reg1, reg2, reg3, reg4):
+        arg = self.b3 >> 6
+        regs = [reg1, reg2, reg3, reg4]
+        
+        self.insn[4].type = o_reg
+        self.insn[4].reg = self.get_register(regs[arg])
+        
+        self.ana_cmem_addressing(5)
+    
     def ana2_output(self, opcode2):
         self.insn[4].type = o_reg
         if (self.b3 & 0x40 > 0):
@@ -1062,6 +1094,19 @@ class TMS57070(idaapi.processor_t):
             self.insn[5].value = 0
             logging.error("ana2_macshift modeselect out of array bounds")
         
+    def ana2_OVclamp(self):
+        arg = self.b3 >> 6
+        
+        self.insn[4].type = o_reg
+        if arg <= 1: #Accumulator
+            self.insn[4].reg = self.get_register("AOVM")
+        else: #MACC
+            self.insn[4].reg = self.get_register("MOVM")
+            
+        self.insn[5].type = o_imm
+        self.insn[5].value = arg & 1 #1 = enabled
+            
+        
     def ana2(self, opcode2):
         if opcode2 == 0x01:
             self.ana2_store("ACC1", "ACC2")
@@ -1069,10 +1114,14 @@ class TMS57070(idaapi.processor_t):
             self.ana2_store("MACC1", "MACC2")
         elif opcode2 == 0x03:
             self.ana2_store("MACC1L", "MACC2L")
-        elif opcode2 == 0x0C:
-            self.ana2_input()
         elif opcode2 == 0x08 or opcode2 == 0x09:
             self.ana2_dereference(opcode2)
+        elif opcode2 == 0x0A:
+            self.ana2_store_cmem("DA1", "DIR1", "DA2", "DIR2")
+        elif opcode2 == 0x0B:
+            self.ana2_store_cmem("CA1", "CIR1", "CA2", "CIR2")
+        elif opcode2 == 0x0C:
+            self.ana2_input()
         elif opcode2 >= 0x18 and opcode2 <= 0x1A:
             self.ana2_output(opcode2)
         elif opcode2 == 0x20:
@@ -1081,6 +1130,8 @@ class TMS57070(idaapi.processor_t):
             self.ana2_hir()
         elif opcode2 == 0x29:
             self.ana2_macshift()
+        elif opcode2 == 0x2D:
+            self.ana2_OVclamp()
         elif opcode2 != 0:
             #Unknown 2nd instruction
             self.insn[4].type = o_reg
@@ -1227,4 +1278,4 @@ class TMS57070(idaapi.processor_t):
 # It should return a new instance of a class derived from idaapi.processor_t
 def PROCESSOR_ENTRY():
     logging.info("PROCESSOR_ENTRY")
-    return TMS57070()
+    return TMS57070_processor()
