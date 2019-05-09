@@ -254,7 +254,7 @@ class TMS57070_processor(idaapi.processor_t):
     def notify_newfile(self, filename):
         #Create PMEM, CMEM and DMEM segments
         
-        PMEM = segment_t()
+        PMEM = idaapi.segment_t()
         PMEM.startEA = 0
         PMEM.endEA = 0x200
         PMEM.bitness = 0 #16-bit addressing
@@ -263,21 +263,21 @@ class TMS57070_processor(idaapi.processor_t):
         
         idaapi.add_segm_ex(PMEM, "PMEM", "CODE", ADDSEG_OR_DIE)
         
-        CMEM = segment_t()
+        CMEM = idaapi.segment_t()
         CMEM.startEA = 0x200
         CMEM.endEA = 0x400
         CMEM.bitness = 0 #16-bit addressing
         CMEM.type = SEG_DATA | SEG_XTRN
-        CMEM.sel = allocate_selector(CMEM.startEA >> 4) #???
+        CMEM.sel = idaapi.allocate_selector(CMEM.startEA >> 4) #???
         
         idaapi.add_segm_ex(CMEM, "CMEM", "DATA", ADDSEG_OR_DIE)
         
-        DMEM = segment_t()
+        DMEM = idaapi.segment_t()
         DMEM.startEA = 0x400
         DMEM.endEA = 0x600
         DMEM.bitness = 0 #16-bit addressing
         DMEM.type = SEG_DATA | SEG_XTRN
-        DMEM.sel = allocate_selector(DMEM.startEA >> 4) #???
+        DMEM.sel = idaapi.allocate_selector(DMEM.startEA >> 4) #???
         
         idaapi.add_segm_ex(DMEM, "DMEM", "DATA", ADDSEG_OR_DIE)
     
@@ -301,11 +301,11 @@ class TMS57070_processor(idaapi.processor_t):
         
         #is it a jump?
         if feature & CF_JUMP > 0: #If the instruction has the CF_JUMP flag
-            add_cref(insn.ea, insn[0].addr, fl_JN)
+            insn.add_cref(insn[0].addr, 0, fl_JN)
         
         #is it a call?
         if feature & CF_CALL > 0: #If the instruction has the CF_CALL flag
-            add_cref(insn.ea, insn[0].addr, fl_CN)
+            insn.add_cref(insn[0].addr, 0, fl_CN)
         
         #is it a repeat?
         reps = ["RPTB", "RPTK"]
@@ -316,12 +316,12 @@ class TMS57070_processor(idaapi.processor_t):
                 self.repeats[insn[1].addr] = insn.ea + insn.size
         
         if insn.ea in self.repeats.keys():
-            add_cref(insn.ea, self.repeats[insn.ea], fl_JN)
+            insn.add_cref(self.repeats[insn.ea], 0, fl_JN)
         
         #Does the processor go to the next instruction?
         flow = (feature & CF_STOP == 0) and not uncond_jmp
         if flow:
-            add_cref(insn.ea, insn.ea + insn.size, fl_F)
+            insn.add_cref(insn.ea + insn.size, 0, fl_F)
         
         #add data xref
         if insn[0].specflag2 == 1:
