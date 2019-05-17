@@ -189,6 +189,9 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'CMP(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Compare MACC with MEM"}, #35, 37
         {'name': 'RDE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Read from external memory at address from CMEM"}, #39
         {'name': 'WRE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
+        {'name': 'ADDD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Add CMEM and DMEM, store result in ACC"}, #3C
+        {'name': 'ANDD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise AND CMEM and DMEM, store result in ACC"}, #3D
+        {'name': 'XORD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise XOR CMEM and DMEM, store result in ACC"}, #3E
         {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
         {'name': 'MPYU(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC"}, #44, 45
         {'name': 'MPYU(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned ACC"}, #48, 49
@@ -228,7 +231,14 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'JBIOZ',  'feature': CF_JUMP,           'cmt': "Jump if BIO low"}, #F58
         {'name': 'JUNKN',  'feature': CF_JUMP,           'cmt': "Jump of unknown function"}, #F38, 40, 50
         {'name': 'CALL',   'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
-        {'name': 'CUNKN',  'feature': CF_CALL,           'cmt': "Call of unknown function"}, #F88, 90
+        {'name': 'CZ',     'feature': CF_CALL,           'cmt': "Call if zero"}, #F90
+        {'name': 'CNZ',    'feature': CF_CALL,           'cmt': "Call if not zero"}, #F98
+        {'name': 'CGZ',    'feature': CF_JUMP,           'cmt': "Call if greater than zero"}, #FA0
+        {'name': 'CLZ',    'feature': CF_JUMP,           'cmt': "Call if less than zero"}, #FA8
+        {'name': 'CAOV',   'feature': CF_JUMP,           'cmt': "Call if accumulator overflow"}, #FB0
+        {'name': 'CMOV',   'feature': CF_JUMP,           'cmt': "Call if MACC overflow"}, #FB8
+        {'name': 'CBIOZ',  'feature': CF_JUMP,           'cmt': "Call if BIO low"}, #FC8
+        {'name': 'CUNKN',  'feature': CF_CALL,           'cmt': "Call of unknown function"}, #F88, others
         {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
     ]
     
@@ -372,13 +382,21 @@ class TMS57070_processor(idaapi.processor_t):
                 
             #All other instructions
             else:
-                if (op.specflag1 == 1):
-                    ctx.out_symbol("*") #pointer symbol
                 if (op.specflag3 == 1):
                     ctx.out_symbol("-") #minus sign
+                if (op.specflag1 == 1):
+                    ctx.out_symbol("*") #pointer symbol
                 ctx.out_register(self.regNames[op.reg])
                 if (op.specflag2 == 1):
                     ctx.out_symbol("+") #post-increment symbol
+                if op.specval == 1:
+                    ctx.out_register("CIR1")
+                elif op.specval == 2:
+                    ctx.out_register("CIR2")
+                elif op.specval == 3:
+                    ctx.out_register("DIR1")
+                elif op.specval == 4:
+                    ctx.out_register("DIR2")
             
         elif optype == o_imm:
             ctx.out_symbol("#")
@@ -400,6 +418,8 @@ class TMS57070_processor(idaapi.processor_t):
         
         elif optype == o_mem:
             #Output memory region
+            if (op.specflag3 == 1):
+                ctx.out_symbol("-") #minus sign
             if (op.specval == 1):
                 ctx.out_printf("DMEM")
             elif (op.specval == 2):
@@ -452,10 +472,12 @@ class TMS57070_processor(idaapi.processor_t):
             ctx.out_char(" ")
             ctx.out_one_operand(i)
         
+        
         #Check for 2nd instruction
         #output MOV and the rest of operands
         if insn[4].type != o_void:
             #print 2nd instruction
+            ctx.out_char(" ") #At least one space between instructions
             ctx.out_spaces(35) #2nd instruc margin
             
             ctx.out_printf("MOV ")
@@ -499,36 +521,39 @@ class TMS57070_processor(idaapi.processor_t):
         
         logging.debug("ana_jumps address: 0x%0.3X" % self.insn[0].addr)
         
-        #condition = lower 4 bits of self.b1 and upper 4 of self.b2
-        condition = (self.b1 & 0xF) << 4 | self.b2 >> 4
+        #condition = lower 3 bits of self.b1 and upper 4 of self.b2
+        condition = (self.b1 & 0x7) << 4 | self.b2 >> 4
+        
+        instr_name = ""
+        if self.b1 >= 0xF8:
+            instr_name = "C" #For calls
+        else:
+            instr_name = "J" #For jumps
         
         if condition == 0x00: #unconditional
-            self.insn.itype = self.get_instruction("JMP")
-        elif condition == 0x10: #jump if zero
-            self.insn.itype = self.get_instruction("JZ")
-        elif condition == 0x18: #jump if not zero
-            self.insn.itype = self.get_instruction("JNZ")
-        elif condition == 0x20: #jump if greater than zero
-            self.insn.itype = self.get_instruction("JGZ")
-        elif condition == 0x28: #jump if less than zero
-            self.insn.itype = self.get_instruction("JLZ")
-        elif condition == 0x30: #jump if acc overflow
-            self.insn.itype = self.get_instruction("JAOV")
-        elif condition == 0x48: #jump if macc overflow
-            self.insn.itype = self.get_instruction("JMOV")
-        elif condition == 0x58: #jump if BIO low
-            self.insn.itype = self.get_instruction("JBIOZ")
-        elif condition == 0x80: #call
-            self.insn.itype = self.get_instruction("CALL")
-        elif condition == 0x88: #call
-            self.insn.itype = self.get_instruction("CUNKN")
-        elif condition == 0x90: #call
-            self.insn.itype = self.get_instruction("CUNKN")
-        elif condition == 0x98: #call
-            self.insn.itype = self.get_instruction("CUNKN")
+            if self.b1 >= 0xF8:
+                instr_name = "CALL"
+            else:
+                instr_name = "JMP"
+        elif condition == 0x10: #if zero
+            instr_name += "Z"
+        elif condition == 0x18: #if not zero
+            instr_name += "NZ"
+        elif condition == 0x20: #if greater than zero
+            instr_name += "GZ"
+        elif condition == 0x28: #if less than zero
+            instr_name += "LZ"
+        elif condition == 0x30: #if acc overflow
+            instr_name += "AOV"
+        elif condition == 0x48: #if macc overflow
+            instr_name += "MOV"
+        elif condition == 0x58: #if BIO low
+            instr_name += "BIOZ"
         else:
-            self.insn.itype = self.get_instruction("JUNKN")
-            
+            instr_name += "UNKN"
+        
+        self.insn.itype = self.get_instruction(instr_name)
+        
     def ana_lri_long(self):
         #load register with immediate
         #Op1 = imm, Op2 = reg
@@ -638,8 +663,17 @@ class TMS57070_processor(idaapi.processor_t):
             else:
                 self.insn[operand].reg = self.get_register("DA1")
             
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b3 & 4 > 0 and 1 or 0
+            #post-incrementing
+            if self.b3 & 4 > 0:
+                #DIR post-increment
+                self.insn[operand].specflag2 = 1 #Print plus sign
+                if self.b3 & 2 > 0:
+                    self.insn[operand].specval = 4 #DIR2
+                else:
+                    self.insn[operand].specval = 3 #DIR1
+            else:
+                self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
+                
         elif (arg == 0x10):
             self.insn[operand].type = o_mem
             self.insn[operand].addr = 0x000 + (self.b3 & 1) << 8 | self.b4 #0x400
@@ -657,8 +691,17 @@ class TMS57070_processor(idaapi.processor_t):
             else:
                 self.insn[operand].reg = self.get_register("CA1")
             
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b4 & 0x40 > 0 and 1 or 0
+            #post-incrementing
+            if self.b4 & 0x80 > 0:
+                #CIR post-increment
+                self.insn[operand].specflag2 = 1 #Print plus sign
+                if self.b4 & 0x40 > 0:
+                    self.insn[operand].specval = 2 #CIR2
+                else:
+                    self.insn[operand].specval = 1 #CIR1
+            else:
+                self.insn[operand].specflag2 = self.b4 & 0x40 > 0 and 1 or 0
+                
         elif (arg == 0x10):
             self.insn[operand].type = o_reg
             self.insn[operand].specflag1 = 1 #Output *
@@ -667,8 +710,17 @@ class TMS57070_processor(idaapi.processor_t):
             else:
                 self.insn[operand].reg = self.get_register("CA1")
             
-            #post-increment flag
-            self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
+            #post-incrementing
+            if self.b3 & 4 > 0:
+                #CIR post-increment
+                self.insn[operand].specflag2 = 1 #Print plus sign
+                if self.b3 & 2 > 0:
+                    self.insn[operand].specval = 2 #CIR2
+                else:
+                    self.insn[operand].specval = 1 #CIR1
+            else:
+                self.insn[operand].specflag2 = self.b3 & 2 > 0 and 1 or 0
+                
         elif (arg == 0x20):
             self.insn[operand].type = o_mem
             self.insn[operand].addr = 0x000 + (self.b3 & 1) << 8 | self.b4 #0x200
@@ -846,6 +898,23 @@ class TMS57070_processor(idaapi.processor_t):
         else:
             self.insn[2].reg = self.get_register("ACC1")
     
+    def ana_arith_dual(self, opcode):
+        logging.info("ana_arith_dual")
+        
+        self.insn.itype = self.get_instruction(opcode)
+        
+        self.ana_cmem_addressing(0);
+        self.ana_dmem_addressing(1);
+        
+        if self.b1 == 0x3C and (self.b2 & 0x80 > 0): #Add
+            self.insn[0].specflag3 = 1 #negate CMEM
+        
+        self.insn[2].type = o_reg
+        if (self.b2 & 0x40 > 0):
+            self.insn[2].reg = self.get_register("ACC2")
+        else:
+            self.insn[2].reg = self.get_register("ACC1")
+    
     def ana_add(self):
         logging.info("ana_add")
         self.insn.itype = self.get_instruction("ADD")
@@ -904,9 +973,11 @@ class TMS57070_processor(idaapi.processor_t):
         logging.info("ana_mult_dual")
         self.insn.itype = self.get_instruction(opcode)
         
-        #self.ana_dual_addressing(0, 1)
         self.ana_cmem_addressing(0)
         self.ana_dmem_addressing(1)
+        
+        if (self.b2 & 0x80 > 0):
+            self.insn[0].specflag3 = 1 #Negate product
         
         self.insn[2].type = o_reg
         if (self.b2 & 0x40 > 0):
@@ -919,6 +990,9 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn.itype = self.get_instruction(opcode)
         
         self.ana_dmem_addressing(0)
+        
+        if (self.b2 & 0x80 > 0):
+            self.insn[0].specflag3 = 1 #Negate product
         
         self.insn[1].type = o_reg
         if (self.b2 & 0x40 > 0):
@@ -1191,6 +1265,12 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana_cmp()
         elif opcode1 == 0x39:
             self.ana_extern()
+        elif opcode1 == 0x3C:
+            self.ana_arith_dual("ADDD")
+        elif opcode1 == 0x3D:
+            self.ana_arith_dual("ANDD")
+        elif opcode1 == 0x3E:
+            self.ana_arith_dual("XORD")
         elif opcode1 == 0x40 or opcode1 == 0x41:
             self.ana_mult_cmem("MPY(1)")
         elif opcode1 == 0x44 or opcode1 == 0x45:
