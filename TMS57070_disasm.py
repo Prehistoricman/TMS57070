@@ -237,11 +237,11 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'CALL',   'feature': CF_CALL,           'cmt': "Call unconditionally"}, #F8
         {'name': 'CZ',     'feature': CF_CALL,           'cmt': "Call if zero"}, #F90
         {'name': 'CNZ',    'feature': CF_CALL,           'cmt': "Call if not zero"}, #F98
-        {'name': 'CGZ',    'feature': CF_JUMP,           'cmt': "Call if greater than zero"}, #FA0
-        {'name': 'CLZ',    'feature': CF_JUMP,           'cmt': "Call if less than zero"}, #FA8
-        {'name': 'CAOV',   'feature': CF_JUMP,           'cmt': "Call if accumulator overflow"}, #FB0
-        {'name': 'CMOV',   'feature': CF_JUMP,           'cmt': "Call if MACC overflow"}, #FB8
-        {'name': 'CBIOZ',  'feature': CF_JUMP,           'cmt': "Call if BIO low"}, #FC8
+        {'name': 'CGZ',    'feature': CF_CALL,           'cmt': "Call if greater than zero"}, #FA0
+        {'name': 'CLZ',    'feature': CF_CALL,           'cmt': "Call if less than zero"}, #FA8
+        {'name': 'CAOV',   'feature': CF_CALL,           'cmt': "Call if accumulator overflow"}, #FB0
+        {'name': 'CMOV',   'feature': CF_CALL,           'cmt': "Call if MACC overflow"}, #FB8
+        {'name': 'CBIOZ',  'feature': CF_CALL,           'cmt': "Call if BIO low"}, #FC8
         {'name': 'CUNKN',  'feature': CF_CALL,           'cmt': "Call of unknown function"}, #F88, others
         {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
     ]
@@ -325,10 +325,10 @@ class TMS57070_processor(idaapi.processor_t):
         reps = ["RPTB", "RPTK"]
         if mnemonic in reps:
             if insn[1].addr != 0x0:
-                #Add flow from end of loop to next instruction
-                #add_cref(insn[1].addr, insn.ea + insn.size, fl_JN)
+                #Remember this repeat for later
                 self.repeats[insn[1].addr] = insn.ea + insn.size
         
+        #If this is the end of a repeat, add the flow to the start of the loop
         if insn.ea in self.repeats.keys():
             insn.add_cref(self.repeats[insn.ea], 0, fl_JN)
         
