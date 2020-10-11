@@ -729,7 +729,11 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[operand].type = o_mem
             self.insn[operand].addr = 0x000 + (self.b3 & 1) << 8 | self.b4 #0x200
             self.insn[operand].specval = 2 #CMEM
-            
+        
+        elif (arg == 0x00):
+            self.insn[operand].type = o_reg
+            self.insn[operand].reg = self.get_register("unkn")
+        
             #TODO DA control
     
     def ana_load(self):
@@ -1167,6 +1171,7 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn[4].type = o_reg
         self.insn[4].reg = self.get_register("XRD")
         
+        #It is possible for this instruction to write to CMEM, but nothing uses it this way
         self.ana_dmem_addressing(5)
     
     def ana2_hir(self):
@@ -1236,6 +1241,15 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.ana_cmem_addressing(cmem_pos)
         
+    def ana2_load_cmem(self, reg1, reg2, reg3, reg4):
+        arg = self.b3 >> 6
+        regs = [reg1, reg2, reg3, reg4]
+        
+        self.insn[5].type = o_reg
+        self.insn[5].reg = self.get_register(regs[arg])
+        
+        self.ana_cmem_addressing(4)
+        
         
     def ana2(self, opcode2):
         if opcode2 == 0x01:
@@ -1244,6 +1258,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_store("MACC1", "MACC2")
         elif opcode2 == 0x03:
             self.ana2_store("MACC1L", "MACC2L")
+        elif opcode2 == 0x06:
+            self.ana2_load_cmem("DA", "DIR", "CA", "CIR")
         elif opcode2 == 0x08 or opcode2 == 0x09:
             self.ana2_dereference(opcode2)
         elif opcode2 == 0x0A:
