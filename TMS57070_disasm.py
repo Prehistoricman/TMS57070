@@ -1221,7 +1221,21 @@ class TMS57070_processor(idaapi.processor_t):
             
         self.insn[5].type = o_imm
         self.insn[5].value = arg & 1 #1 = enabled
-            
+    
+    def ana2_CR(self, opcode2):
+        CR_pos = 4
+        cmem_pos = 5
+        
+        if opcode2 == 0x22: #If this is a write to CRx
+            CR_pos = 5
+            cmem_pos = 4
+        
+        CR = self.b3 >> 6
+        self.insn[CR_pos].type = o_reg
+        self.insn[CR_pos].reg = self.get_register("CR" + str(CR))
+        
+        self.ana_cmem_addressing(cmem_pos)
+        
         
     def ana2(self, opcode2):
         if opcode2 == 0x01:
@@ -1242,6 +1256,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_output(opcode2)
         elif opcode2 == 0x20:
             self.ana2_extern()
+        elif opcode2 == 0x22 or opcode2 == 0x23:
+            self.ana2_CR(opcode2)
         elif opcode2 == 0x26:
             self.ana2_hir()
         elif opcode2 == 0x29:
