@@ -1,7 +1,7 @@
 # TMS57070
 Tools &amp; docs for the TI DSP TMS57070 including IDA disassembler
 
-## Open the wiki tab for documentation
+## Open the [wiki tab](https://github.com/Prehistoricman/TMS57070/wiki) for documentation
 
 **TMS57070_disasm.py** IDA Processor module
   * Install in IDA_dir/procs/
