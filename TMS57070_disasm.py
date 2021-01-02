@@ -627,7 +627,7 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[2].type = o_reg
             self.insn[2].reg = self.get_register("ACC")
         else:
-            logging.error("ana_lri wrong operand to LADI: " + hex(self.b2))
+            logging.error("ana_lri wrong operand to LRI: " + hex(self.b2))
             
     def ana_lri_dual(self):
         #load addressing registers with immediates
@@ -1135,7 +1135,7 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.ana_cmem_addressing(5)
     
-    def ana2_output(self, opcode2):
+    def ana2_output(self):
         self.insn[4].type = o_reg
         if (self.b3 & 0x40 > 0):
             self.insn[4].reg = self.get_register("MACC2")
@@ -1143,14 +1143,14 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[4].reg = self.get_register("MACC1")
         
         output_port = ""
-        if opcode2 == 0x18:
+        if self.opcode2 == 0x18:
             output_port = "AX1"
-        elif opcode2 == 0x19:
+        elif self.opcode2 == 0x19:
             output_port = "AX2"
-        elif opcode2 == 0x1A:
+        elif self.opcode2 == 0x1A:
             output_port = "AX3"
         else:
-            logging.error("ana2_output Wrong 2nd instruction used on this function (opcode2 = " + str(opcode2) + ")")
+            logging.error("ana2_output Wrong 2nd instruction used on this function (opcode2 = " + str(self.opcode2) + ")")
         
         self.insn[5].type = o_reg
         if (self.b3 & 0x80 > 0):
@@ -1159,11 +1159,12 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[5].reg = self.get_register(output_port + "L")
         
     def ana2_input(self):
+        
+        port = "1" if self.opcode2 == 0x0C else "2" #AR2 in case of 0x0D opcode2
+        channel = "L" if self.b3 & 0x80 == 0 else "R"
+        
         self.insn[4].type = o_reg
-        if (self.b3 & 0x80 > 0):
-            self.insn[4].reg = self.get_register("AR1R")
-        else:
-            self.insn[4].reg = self.get_register("AR1L")
+        self.insn[4].reg = self.get_register("AR" + port + channel)
         
         self.ana_dmem_addressing(5) #TODO investigation for C5, CD
     
@@ -1183,10 +1184,10 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn[5].type = o_reg
         self.insn[5].reg = self.get_register("HIR")
         
-    def ana2_dereference(self, opcode2):
+    def ana2_dereference(self):
         self.ana_cmem_addressing(4)
         
-        mem = "C" if opcode2 == 0x9 else "D"
+        mem = "C" if self.opcode2 == 0x9 else "D"
         
         self.insn[5].type = o_reg
         if (self.b3 & 0x40 > 0): #Store in CIR
@@ -1227,11 +1228,11 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn[5].type = o_imm
         self.insn[5].value = arg & 1 #1 = enabled
     
-    def ana2_CR(self, opcode2):
+    def ana2_CR(self):
         CR_pos = 4
         cmem_pos = 5
         
-        if opcode2 == 0x22: #If this is a write to CRx
+        if self.opcode2 == 0x22: #If this is a write to CRx
             CR_pos = 5
             cmem_pos = 4
         
@@ -1251,36 +1252,36 @@ class TMS57070_processor(idaapi.processor_t):
         self.ana_cmem_addressing(4)
         
         
-    def ana2(self, opcode2):
-        if opcode2 == 0x01:
+    def ana2(self):
+        if self.opcode2 == 0x01:
             self.ana2_store("ACC1", "ACC2")
-        elif opcode2 == 0x02:
+        elif self.opcode2 == 0x02:
             self.ana2_store("MACC1", "MACC2")
-        elif opcode2 == 0x03:
+        elif self.opcode2 == 0x03:
             self.ana2_store("MACC1L", "MACC2L")
-        elif opcode2 == 0x06:
+        elif self.opcode2 == 0x06:
             self.ana2_load_cmem("DA", "DIR", "CA", "CIR")
-        elif opcode2 == 0x08 or opcode2 == 0x09:
-            self.ana2_dereference(opcode2)
-        elif opcode2 == 0x0A:
+        elif self.opcode2 == 0x08 or self.opcode2 == 0x09:
+            self.ana2_dereference()
+        elif self.opcode2 == 0x0A:
             self.ana2_store_cmem("DA1", "DIR1", "DA2", "DIR2")
-        elif opcode2 == 0x0B:
+        elif self.opcode2 == 0x0B:
             self.ana2_store_cmem("CA1", "CIR1", "CA2", "CIR2")
-        elif opcode2 == 0x0C:
+        elif self.opcode2 == 0x0C or self.opcode2 == 0x0D:
             self.ana2_input()
-        elif opcode2 >= 0x18 and opcode2 <= 0x1A:
-            self.ana2_output(opcode2)
-        elif opcode2 == 0x20:
+        elif self.opcode2 >= 0x18 and self.opcode2 <= 0x1A:
+            self.ana2_output()
+        elif self.opcode2 == 0x20:
             self.ana2_extern()
-        elif opcode2 == 0x22 or opcode2 == 0x23:
-            self.ana2_CR(opcode2)
-        elif opcode2 == 0x26:
+        elif self.opcode2 == 0x22 or self.opcode2 == 0x23:
+            self.ana2_CR()
+        elif self.opcode2 == 0x26:
             self.ana2_hir()
-        elif opcode2 == 0x29:
+        elif self.opcode2 == 0x29:
             self.ana2_macshift()
-        elif opcode2 == 0x2D:
+        elif self.opcode2 == 0x2D:
             self.ana2_OVclamp()
-        elif opcode2 != 0:
+        elif self.opcode2 != 0:
             #Unknown 2nd instruction
             self.insn[4].type = o_reg
             self.insn[5].type = o_reg
@@ -1304,7 +1305,7 @@ class TMS57070_processor(idaapi.processor_t):
         insn.size = 1 #fixed 4-byte (1 word) instruction size
         
         opcode1 = self.b1
-        opcode2 = self.b2 & 0x3F #2 MSBs of byte 2 are args
+        self.opcode2 = self.b2 & 0x3F #2 MSBs of byte 2 are args
         args1 = self.b2 >> 6 #Remove opcode2 bytes from self.b2
         
         logging.debug("notify_ana opcode1: " + hex(opcode1, 2))
@@ -1418,7 +1419,7 @@ class TMS57070_processor(idaapi.processor_t):
         
         #Analyse 2nd instruction
         if opcode1 >= 0 and opcode1 <= 0x7F: #Do not analyse single-instruction words
-            self.ana2(opcode2)
+            self.ana2()
         
         # Return decoded instruction size or zero
         return insn.size
