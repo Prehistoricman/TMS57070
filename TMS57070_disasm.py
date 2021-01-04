@@ -110,6 +110,11 @@ class TMS57070_processor(idaapi.processor_t):
         "CR1",
         "CR2",
         "CR3",
+        #Control register fields
+        "CR1.MOSM",#MACC output shifter mode
+        "CR1.MOVM",#MACC overflow clamp mode
+        "CR1.AOVM",#ACC overflow clamp mode
+        "CR2.FREE",#Interrupt busy flag
         "HIR", #Host interface register
         "CIR", #Incrementing registers
         "CIR1",
@@ -128,9 +133,6 @@ class TMS57070_processor(idaapi.processor_t):
         "AR1L",
         "AR2R",
         "AR2L",
-        "MOSM",#MACC output shifter mode
-        "MOVM",#MACC overflow clamp mode
-        "AOVM",#ACC overflow clamp mode
         "SS",#Signed and unsigned
         "US",
         "SU",
@@ -1203,7 +1205,7 @@ class TMS57070_processor(idaapi.processor_t):
         
     def ana2_macshift(self):
         self.insn[4].type = o_reg
-        self.insn[4].reg = self.get_register("MOSM")
+        self.insn[4].reg = self.get_register("CR1.MOSM")
         
         self.insn[5].type = o_imm
         self.insn[5].specflag1 = 1 #Output sign for -8
@@ -1221,9 +1223,9 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.insn[4].type = o_reg
         if arg <= 1: #Accumulator
-            self.insn[4].reg = self.get_register("AOVM")
+            self.insn[4].reg = self.get_register("CR1.AOVM")
         else: #MACC
-            self.insn[4].reg = self.get_register("MOVM")
+            self.insn[4].reg = self.get_register("CR1.MOVM")
             
         self.insn[5].type = o_imm
         self.insn[5].value = arg & 1 #1 = enabled
@@ -1251,6 +1253,22 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.ana_cmem_addressing(4)
         
+    def ana2_2C(self):
+        arg = self.b3 >> 6
+        
+        if arg >= 2:
+            #002C8xxx - 002CFxxx
+            #Unknown
+            self.insn[4].type = o_reg
+            self.insn[5].type = o_reg
+            self.insn[4].reg = self.get_register("unkn")
+            self.insn[5].reg = self.get_register("unkn")
+        else:
+            self.insn[4].type = o_imm
+            self.insn[4].value = arg & 1
+            
+            self.insn[5].type = o_reg
+            self.insn[5].reg = self.get_register("CR2.FREE")
         
     def ana2(self):
         if self.opcode2 == 0x01:
@@ -1279,6 +1297,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_hir()
         elif self.opcode2 == 0x29:
             self.ana2_macshift()
+        elif self.opcode2 == 0x2C:
+            self.ana2_2C()
         elif self.opcode2 == 0x2D:
             self.ana2_OVclamp()
         elif self.opcode2 != 0:
