@@ -1269,7 +1269,22 @@ class TMS57070_processor(idaapi.processor_t):
             
             self.insn[5].type = o_reg
             self.insn[5].reg = self.get_register("CR2.FREE")
+    
+    def ana2_circular_mode(self):
+        arg = self.b3 >> 6
         
+        value = arg & 1
+        memory = arg & 2
+        
+        self.insn[4].type = o_reg
+        if memory == 0:
+            self.insn[4].reg = self.get_register("CR1.LDMEM")
+        else:
+            self.insn[4].reg = self.get_register("CR1.LCMEM")
+        
+        self.insn[5].type = o_imm
+        self.insn[5].value = value
+    
     def ana2(self):
         if self.opcode2 == 0x01:
             self.ana2_store("ACC1", "ACC2")
@@ -1301,6 +1316,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_2C()
         elif self.opcode2 == 0x2D:
             self.ana2_OVclamp()
+        elif self.opcode2 == 0x2E:
+            self.ana2_circular_mode()
         elif self.opcode2 != 0:
             #Unknown 2nd instruction
             self.insn[4].type = o_reg
