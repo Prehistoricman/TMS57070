@@ -537,10 +537,13 @@ class TMS57070_processor(idaapi.processor_t):
             instr_name = "J" #For jumps
         
         if condition == 0x00: #unconditional
-            if self.b1 >= 0xF8:
-                instr_name = "CALL"
-            else:
-                instr_name = "JMP"
+            pass
+        elif condition == 0x08: #indirect jump to ACC1
+            self.insn[0].type = o_reg
+            self.insn[0].reg = self.get_register("ACC1")
+        elif condition == 0x0C: #indirect jump to ACC2
+            self.insn[0].type = o_reg
+            self.insn[0].reg = self.get_register("ACC2")
         elif condition == 0x10: #if zero
             instr_name += "Z"
         elif condition == 0x18: #if not zero
@@ -557,6 +560,12 @@ class TMS57070_processor(idaapi.processor_t):
             instr_name += "BIOZ"
         else:
             instr_name += "UNKN"
+        
+        if len(instr_name) == 1: #If name has not been set yet
+            if self.b1 >= 0xF8:
+                instr_name = "CALL"
+            else:
+                instr_name = "JMP"
         
         self.insn.itype = self.get_instruction(instr_name)
         
