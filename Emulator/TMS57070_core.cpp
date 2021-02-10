@@ -339,17 +339,23 @@ void Emulator::exec1st() {
 		RPTC = 0;
 		break;
 
-	case 0xF0: //JMP
-		PC.value = insn;
-		tms_printf("Jumping to %03X\n", PC.value & 0x1FF);
-		break;
-
-	case 0xF8: //CALL
-		assert(SP != 4); //Stack overflow!
-		stack[SP].value = PC.value;
-		SP++;
-		PC.value = insn;
-		tms_printf("Calling %03X\n", PC.value & 0x1FF);
+	case 0xF0: //Jmp
+	case 0xF1: //Conditional jumps
+	case 0xF2:
+	case 0xF3:
+	case 0xF4:
+	case 0xF5:
+	case 0xF6:
+	case 0xF7:
+	case 0xF8: //Call
+	case 0xF9: //Conditional call
+	case 0xFA:
+	case 0xFB:
+	case 0xFC:
+	case 0xFD:
+	case 0xFE:
+	case 0xFF:
+		execJmp();
 		break;
 
 	default:
@@ -645,4 +651,72 @@ uint32_t Emulator::dmemAddressing() { //TODO: addressing wrap-around and 24-bit 
 		assert(false); //Should not happen
 	}
 	return 0;
+}
+
+//Handle any jmp/call instruction
+void Emulator::execJmp() {
+	//Get the two nibbles after the first one. A jump instruction may be 0xF1800045 - in this case we want '18'
+	uint8_t args = insn >> (4 + 16);
+
+	bool is_call = opcode1 >= 0xF8;
+	bool condition_pass = false;
+	uint16_t target_address = insn;
+
+	switch (args) {
+	case 0x00: //Unconditional
+		condition_pass = true;
+		break;
+	case 0x08: //Unconditional indirect
+		condition_pass = true;
+		target_address = ACC1.value;
+		break;
+	case 0x0C: //Unconditional indirect
+		condition_pass = true;
+		target_address = ACC2.value;
+		break;
+	case 0x10: //if zero
+		condition_pass = CR1.ACCZ;
+		break;
+	case 0x18: //if not zero
+		condition_pass = !CR1.ACCZ;
+		break;
+	case 0x20: //if greater than zero
+		condition_pass = !(CR1.ACCZ || CR1.ACCN);
+		break;
+	case 0x28: //if less than zero
+		condition_pass = CR1.ACCN;
+		break;
+	case 0x30: //if ACC overflow
+		condition_pass = CR1.AOV;
+		break;
+	case 0x38: //if ??? - CR1 bit 1
+		condition_pass = CR1.ACCsomething;
+		break;
+	case 0x40: //if ??? - CR1 bit 4
+		condition_pass = CR1.MACOV2;
+		break;
+	case 0x48: //if MAC overflow - CR1 bit 5
+		condition_pass = CR1.MACOV;
+		break;
+	case 0x50: //if ??? - CR1 bit 6
+		condition_pass = CR1.MACOV4;
+		break;
+	case 0x58: //if BIO low TODO
+		
+		break;
+	}
+	if (condition_pass) {
+		if (is_call) {
+			assert(SP != 4); //Stack overflow!
+			stack[SP].value = PC.value;
+			SP++;
+		}
+
+		PC.value = target_address;
+
+		if (is_call)
+			tms_printf("Calling %03X\n", PC.value);
+		else
+			tms_printf("Jumping to %03X\n", PC.value);
+	}
 }

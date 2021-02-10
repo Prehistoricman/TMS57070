@@ -45,9 +45,9 @@ namespace TMS57070 {
             uint8_t AOV : 1;
             uint8_t ACCsomething : 1;
             uint8_t ACCZ : 1;
-            uint8_t MACZ : 1;
+            uint8_t ACCN : 1;
             uint8_t MACOV2 : 1;
-            uint8_t MACOV3 : 1;
+            uint8_t MACOV : 1;
             uint8_t MACOV4 : 1;
             uint8_t unk7 : 1;
             //byte 1
@@ -187,6 +187,7 @@ namespace TMS57070 {
         uint32_t dmemAddressing();
         uint24_t* loadACC();
         uint24_t* arith(ArithOperation operation);
+        void execJmp();
 
     public:
         uint32_t PMEM[512];

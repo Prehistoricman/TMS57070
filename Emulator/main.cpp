@@ -96,7 +96,7 @@ int main() { //int argc, char* argv[]
     dsp.step();
     dsp.step();
     dsp.sample_in(TMS57070::Channel::in_1L, 0x696969);
-    for (uint16_t i = 0; i < 40; i++) { //TODO: input and output
+    for (uint16_t i = 0; i < 60; i++) { //TODO: input and output
         dsp.step();
     }
     return 0;
