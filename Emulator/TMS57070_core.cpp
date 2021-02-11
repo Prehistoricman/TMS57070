@@ -3,6 +3,7 @@
 
 using namespace TMS57070;
 
+//Decodes a load instruction and sets the ACC accordingly
 //Returns pointer to the destination ACC
 uint24_t* Emulator::loadACC() {
 	//Where is the data destination?
@@ -264,12 +265,14 @@ void Emulator::exec1st() {
 			CIR.two.value = insn;
 			break;
 		case 0x40: //LIRAE
-			//TODO
-			CA.one.value = insn;
+			if (!CR1.ACCN) {
+				CA.one.value = insn;
+			}
 			break;
 		case 0x48: //LIRAE
-			//TODO
-			CA.two.value = insn;
+			if (!CR1.ACCN) {
+				CA.two.value = insn;
+			}
 			break;
 		default:
 			assert(false); //unknown
