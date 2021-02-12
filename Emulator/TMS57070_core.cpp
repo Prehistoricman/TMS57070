@@ -593,9 +593,11 @@ uint32_t Emulator::getMAC(uint8_t mac, MACBits bits) {
 }
 
 //Returns CMEM address specified by the current instruction
-uint32_t Emulator::cmemAddressing() { //TODO: wrap-around
+uint32_t Emulator::cmemAddressing() {
 	uint8_t mode = (insn >> 12) & 3;
 	bool ca_switch;
+	uint32_t addr = 0;
+
 	switch (mode) {
 	case 0:
 		//bad
@@ -604,62 +606,75 @@ uint32_t Emulator::cmemAddressing() { //TODO: wrap-around
 		//Indirect
 		ca_switch = insn & 0x00000800;
 		if (ca_switch) {
-			return CA.two.value;
+			addr = CA.two.value;
 		} else {
-			return CA.one.value;
+			addr = CA.one.value;
 		}
 		break;
 	case 2:
 		//Direct
-		return insn & 0x1FF;
+		addr = insn;
 		break;
 	case 3:
 		//Indirect
 		ca_switch = insn & 0x00000100;
 		if (ca_switch) {
-			return CA.two.value;
+			addr = CA.two.value;
 		} else {
-			return CA.one.value;
+			addr = CA.one.value;
 		}
 		break;
 	default:
 		assert(false); //Should not happen
 	}
-	return 0;
+	
+	if (CR1.EXT && CR1.EXTMEM) { //CMEM is 512 words
+		return addr & 0x1FF;
+	} else { //CMEM is 256 words
+		return addr & 0xFF;
+	}
 }
 
 //Returns DMEM address specified by the current instruction
-uint32_t Emulator::dmemAddressing() { //TODO: addressing wrap-around and 24-bit limit
+uint32_t Emulator::dmemAddressing() {
 	uint8_t mode = (insn >> 12) & 3;
 	bool ca_switch;
+	uint32_t addr = 0;
+
 	switch (mode) {
 	case 0:
 		//bad
 		break;
 	case 1:
 		//Direct
-		return insn & 0x1FF;
+		addr = insn;
 		break;
 	case 2:
 	case 3:
 		//Indirect
 		ca_switch = insn & 0x00000800;
 		if (ca_switch) {
-			return DA.two.value;
+			addr = DA.two.value;
 		} else {
-			return DA.one.value;
+			addr = DA.one.value;
 		}
 		break;
 	default:
 		assert(false); //Should not happen
 	}
-	return 0;
+
+	if (CR1.EXT && !CR1.EXTMEM) { //DMEM is 512 words
+		return addr & 0x1FF;
+	} else { //DMEM is 256 words
+		return addr & 0xFF;
+	}
 }
 
 //Handle any jmp/call instruction
 void Emulator::execJmp() {
 	//Get the two nibbles after the first one. A jump instruction may be 0xF1800045 - in this case we want '18'
-	uint8_t args = insn >> (4 + 16);
+	//Also AND with 7F to give jumps (0xF0 based) and calls (0xF8 based) the same conditions
+	uint8_t args = (insn >> (4 + 16)) & 0x7F;
 
 	bool is_call = opcode1 >= 0xF8;
 	bool condition_pass = false;
@@ -707,6 +722,8 @@ void Emulator::execJmp() {
 	case 0x58: //if BIO low TODO
 		
 		break;
+	default:
+		assert(false); //Unhandled jump type
 	}
 	if (condition_pass) {
 		if (is_call) {
