@@ -9,6 +9,10 @@
 #define tms_printf(...)
 #endif
 
+constexpr uint32_t UINT24_MAX = 0xFFFFFF;
+constexpr uint32_t INT24_MAX = 0x7FFFFF;
+constexpr uint32_t INT24_MIN = 0x800000;
+
 namespace TMS57070 {
 
     typedef struct {
@@ -22,6 +26,10 @@ namespace TMS57070 {
     typedef struct {
         uint32_t value : 24;
     } uint24_t;
+
+    typedef struct {
+        int32_t value : 24;
+    } int24_t;
 
     typedef struct {
         uint64_t value : 52;
@@ -182,11 +190,12 @@ namespace TMS57070 {
         void exec1st();
         void exec2nd();
         interrupt_vector_t int_vector_decode(uint8_t);
-        uint32_t getMAC(uint8_t mac, MACBits bits);
+        int32_t getMAC(uint8_t mac, MACBits bits);
         uint32_t cmemAddressing();
         uint32_t dmemAddressing();
-        uint24_t* loadACC();
-        uint24_t* arith(ArithOperation operation);
+        int24_t* loadACC();
+        int24_t* arith(ArithOperation operation);
+        int32_t processACCValue(int32_t acc);
         void execJmp();
 
     public:
@@ -210,22 +219,22 @@ namespace TMS57070 {
         uint52_t MACC2;
 
         //24-bit
-        uint24_t ACC1;
-        uint24_t ACC2;
+        int24_t ACC1;
+        int24_t ACC2;
         uint24_t HIR;
-        uint24_t XRD;
+        int24_t XRD;
 
-        uint24_t AR1L;
-        uint24_t AR1R;
-        uint24_t AR2L;
-        uint24_t AR2R;
+        int24_t AR1L;
+        int24_t AR1R;
+        int24_t AR2L;
+        int24_t AR2R;
 
-        uint24_t AX1L;
-        uint24_t AX1R;
-        uint24_t AX2L;
-        uint24_t AX2R;
-        uint24_t AX3L;
-        uint24_t AX3R;
+        int24_t AX1L;
+        int24_t AX1R;
+        int24_t AX2L;
+        int24_t AX2R;
+        int24_t AX3L;
+        int24_t AX3R;
 
         cr0_t CR0;
         cr1_t CR1;

@@ -5,9 +5,10 @@ using namespace TMS57070;
 
 //Decodes a load instruction and sets the ACC accordingly
 //Returns pointer to the destination ACC
-uint24_t* Emulator::loadACC() {
+int24_t* Emulator::loadACC() {
+	int32_t result;
 	//Where is the data destination?
-	uint24_t* dst = &ACC1;
+	int24_t* dst = &ACC1;
 	if (opcode1_flag4) {
 		dst = &ACC2;
 	}
@@ -15,43 +16,47 @@ uint24_t* Emulator::loadACC() {
 	uint8_t src_code = opcode1 & 3;
 	switch (src_code) {
 	case 0:
-		dst->value = DMEM[dmemAddressing()];
+		result = DMEM[dmemAddressing()];
 		break;
 	case 1:
-		dst->value = CMEM[cmemAddressing()];
+		result = CMEM[cmemAddressing()];
 		break;
 	case 2:
 		if (opcode1_flag8) {
-			dst->value = ACC2.value;
+			result = ACC2.value;
 		} else {
-			dst->value = ACC1.value;
+			result = ACC1.value;
 		}
 		break;
 	case 3:
 		if (opcode1_flag8) {
-			dst->value = getMAC(2, MACBits::Upper);
+			result = getMAC(2, MACBits::Upper);
 		} else {
-			dst->value = getMAC(1, MACBits::Upper);
+			result = getMAC(1, MACBits::Upper);
 		}
 		break;
 	default:
+		result = 0;
 		assert(false); //Should not happen
 	}
+
+	//Apply flags
+	dst->value = processACCValue(result);
 
 	return dst;
 }
 
 //Returns pointer to the destination ACC
-uint24_t* Emulator::arith(ArithOperation operation) {
+int24_t* Emulator::arith(ArithOperation operation) {
 	//Where is the data destination?
-	uint24_t* dst = &ACC1;
+	int24_t* dst = &ACC1;
 	if (opcode1_flag4) {
 		dst = &ACC2;
 	}
 	//Where is the data source?
 	uint8_t src_code = opcode1 & 3;
-	uint24_t lhs;
-	uint24_t rhs;
+	int24_t lhs;
+	int24_t rhs;
 	switch (src_code) {
 	case 0: //DMEM op ACCx
 		lhs.value = DMEM[dmemAddressing()];
@@ -91,7 +96,7 @@ uint24_t* Emulator::arith(ArithOperation operation) {
 		rhs.value = 0;
 	}
 
-	uint32_t result;
+	int32_t result;
 	switch (operation) {
 	case ArithOperation::Add:
 		result = lhs.value + rhs.value;
@@ -111,23 +116,57 @@ uint24_t* Emulator::arith(ArithOperation operation) {
 	case ArithOperation::Cmp:
 		//Quit early to avoid writing to ACC
 		result = lhs.value - rhs.value;
-		//TODO: apply flags
-		return nullptr;
+		if ((result < INT24_MIN) || (result > INT24_MAX)) {
+			CR1.AOV = 1;
+		}
+		if (result == 0) {
+			CR1.ACCZ = 1;
+		} else if (result < 0) {
+			CR1.ACCN = 1;
+		}
+		return nullptr; //This value doesn't get saved to ACC
 		break;
 	default:
 		assert(false);
 	}
 
-	//These operations can over/underflow
-	if ((operation == ArithOperation::Add) || (operation == ArithOperation::Sub)) {
-		if (CR1.AOVM) {
-			//TODO: saturation logic
-			CR1.AOV = 0;
-		}
-	}
+	//Set flags
+	result = processACCValue(result);
 
 	dst->value = result;
 	return dst;
+}
+
+//Takes in a new ACC value as a result of a calculation and:
+//applies saturation logic, truncates, and sets overflow flag
+//returns the correct value to load
+int32_t Emulator::processACCValue(int32_t acc) {
+	if (CR1.AOVM) { //saturation logic on
+		if (acc < INT24_MIN) {
+			//Saturate at minimum
+			acc = INT24_MIN;
+			CR1.AOV = 1;
+		} else if (acc > INT24_MAX) {
+			acc = INT24_MAX;
+			CR1.AOV = 1;
+		}
+	} else { //saturation logic off
+		//nothing to do?
+		//TODO: can acc overflow with sat. logic off?
+		if ((acc < INT24_MIN) || (acc > INT24_MAX)) {
+			CR1.AOV = 1;
+		}
+	}
+	
+	int24_t acc_i24{acc}; //Value is truncated here. Sign is re-calculated, not preserved
+
+	if (acc_i24.value == 0) {
+		CR1.ACCZ = 1;
+	} else if (acc_i24.value < 0) {
+		CR1.ACCN = 1;
+	}
+
+	return acc_i24.value;
 }
 
 void Emulator::exec1st() {
@@ -140,7 +179,7 @@ void Emulator::exec1st() {
 	case 0x5:
 	case 0x6:
 	case 0x7: {
-		uint24_t* dst = loadACC();
+		int24_t* dst = loadACC();
 		if (dst->value >= 0x800000) {
 			dst->value = ~dst->value;
 		}
@@ -153,7 +192,7 @@ void Emulator::exec1st() {
 	case 0xA:
 	case 0xB:
 	{
-		uint24_t* dst = loadACC();
+		int24_t* dst = loadACC();
 		dst->value = ~dst->value + 1; //TODO: saturation logic
 
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
@@ -163,7 +202,7 @@ void Emulator::exec1st() {
 	case 0x11:
 	case 0x12:
 	case 0x13: {
-		uint24_t* dst = loadACC();
+		int24_t* dst = loadACC();
 
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -172,7 +211,7 @@ void Emulator::exec1st() {
 	case 0x15:
 	case 0x16:
 	case 0x17: {
-		uint24_t* dst = loadACC();
+		int24_t* dst = loadACC();
 		dst->value++;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -181,7 +220,7 @@ void Emulator::exec1st() {
 	case 0x19:
 	case 0x1A:
 	case 0x1B: {
-		uint24_t* dst = loadACC();
+		int24_t* dst = loadACC();
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -190,7 +229,7 @@ void Emulator::exec1st() {
 	case 0x21:
 	case 0x22:
 	case 0x23: {
-		uint24_t* dst = arith(ArithOperation::Add);
+		int24_t* dst = arith(ArithOperation::Add);
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -199,7 +238,7 @@ void Emulator::exec1st() {
 	case 0x25:
 	case 0x26:
 	case 0x27: {
-		uint24_t* dst = arith(ArithOperation::Sub);
+		int24_t* dst = arith(ArithOperation::Sub);
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -208,7 +247,7 @@ void Emulator::exec1st() {
 	case 0x29:
 	case 0x2A:
 	case 0x2B: {
-		uint24_t* dst = arith(ArithOperation::And);
+		int24_t* dst = arith(ArithOperation::And);
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -217,7 +256,7 @@ void Emulator::exec1st() {
 	case 0x2D:
 	case 0x2E:
 	case 0x2F: {
-		uint24_t* dst = arith(ArithOperation::Or);
+		int24_t* dst = arith(ArithOperation::Or);
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -226,7 +265,7 @@ void Emulator::exec1st() {
 	case 0x31:
 	case 0x32:
 	case 0x33: {
-		uint24_t* dst = arith(ArithOperation::Xor);
+		int24_t* dst = arith(ArithOperation::Xor);
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -235,7 +274,7 @@ void Emulator::exec1st() {
 	case 0x35:
 	case 0x36:
 	case 0x37: {
-		uint24_t* dst = arith(ArithOperation::Cmp);
+		int24_t* dst = arith(ArithOperation::Cmp);
 	} break;
 
 	case 0xC1: //Load register with immediate
@@ -293,9 +332,11 @@ void Emulator::exec1st() {
 		break;
 	case 0xCA: //Load ACC1 imm
 		ACC1.value = insn;
+		processACCValue(ACC1.value); //Set flags
 		break;
 	case 0xCB: //Load ACC2 imm
 		ACC2.value = insn;
+		processACCValue(ACC2.value); //Set flags
 		break;
 	case 0xCC: //Load CR0 imm
 		CR0.value = insn;
@@ -582,7 +623,7 @@ void Emulator::exec2nd() {
 	}
 }
 
-uint32_t Emulator::getMAC(uint8_t mac, MACBits bits) {
+int32_t Emulator::getMAC(uint8_t mac, MACBits bits) {
 	//Apply MAC output shifter
 	//TODO: everything
 	if (mac == 1) {
