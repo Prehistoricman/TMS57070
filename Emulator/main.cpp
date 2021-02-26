@@ -61,36 +61,6 @@ int main() { //int argc, char* argv[]
         //printf("Loading CMEM with %X at %X\n", word, i);
     }
 
-    /*
-    dsp.PMEM[0] = 0xF0000009;
-    uint8_t i = 9;
-    dsp.PMEM[i++] = 0x00003000;
-    dsp.PMEM[i++] = 0x00003000;
-
-
-    dsp.PMEM[i++] = 0x10001010;
-    dsp.PMEM[i++] = 0x10002000;
-    dsp.PMEM[i++] = 0x10002100;
-    dsp.PMEM[i++] = 0x10002000;
-    dsp.PMEM[i++] = 0x10003800;
-    
-    dsp.PMEM[i++] = 0x11002010; //b0d
-    dsp.PMEM[i++] = 0x11003000;
-    dsp.PMEM[i++] = 0x11003100;
-    dsp.PMEM[i++] = 0x11001000;
-    dsp.PMEM[i++] = 0x11001800;
-
-    dsp.PMEM[i++] = 0x12803000; //load ACC1 with ACC2
-    dsp.PMEM[i++] = 0x12403000; //Load ACC2 with ACC1
-    dsp.PMEM[i++] = 0x12401200; //should be identical
-    dsp.PMEM[i++] = 0x1240FFFF;
-
-    dsp.PMEM[i++] = 0x13C0FFFF;
-    dsp.PMEM[i++] = 0x1300FFFF;
-
-    dsp.PMEM[i++] = 0xF000000A;
-    */
-
     dsp.reset();
     dsp.step();
     dsp.step();
@@ -101,6 +71,3 @@ int main() { //int argc, char* argv[]
     }
     return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
