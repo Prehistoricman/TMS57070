@@ -50,7 +50,7 @@ void Emulator::step() {
 	opcode2 = (insn >> 16) & 0x3F;
 	opcode2_flag4 = insn & 0x00004000;
 	opcode2_flag8 = insn & 0x00008000;
-	opcode2_args = (insn >> 12) & 3; //This encompasses the above 2 flags
+	opcode2_args = (insn >> 14) & 3; //This encompasses the above 2 flags
 
 	if ((insn >> 24) >= 0x80) {
 		//Only primary instruction
