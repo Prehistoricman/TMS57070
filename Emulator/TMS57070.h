@@ -10,8 +10,8 @@
 #endif
 
 constexpr uint32_t UINT24_MAX = 0xFFFFFF;
-constexpr uint32_t INT24_MAX = 0x7FFFFF;
-constexpr uint32_t INT24_MIN = 0x800000;
+constexpr int32_t INT24_MAX = 0x7FFFFF;
+constexpr int32_t INT24_MIN = -0x800000;
 
 namespace TMS57070 {
 
