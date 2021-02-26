@@ -144,9 +144,11 @@ int32_t Emulator::processACCValue(int32_t acc) {
 	if (CR1.AOVM) { //saturation logic on
 		if (acc < INT24_MIN) {
 			//Saturate at minimum
+			printf("processACCValue: saturating value %d (%X) at -ve\n", acc, acc);
 			acc = INT24_MIN;
 			CR1.AOV = 1;
 		} else if (acc > INT24_MAX) {
+			printf("processACCValue: saturating value %d (%X) at +ve\n", acc, acc);
 			acc = INT24_MAX;
 			CR1.AOV = 1;
 		}
@@ -160,11 +162,8 @@ int32_t Emulator::processACCValue(int32_t acc) {
 	
 	int24_t acc_i24{acc}; //Value is truncated here. Sign is re-calculated, not preserved
 
-	if (acc_i24.value == 0) {
-		CR1.ACCZ = 1;
-	} else if (acc_i24.value < 0) {
-		CR1.ACCN = 1;
-	}
+	CR1.ACCZ = acc_i24.value == 0;
+	CR1.ACCN = acc_i24.value < 0;
 
 	return acc_i24.value;
 }
@@ -230,7 +229,6 @@ void Emulator::exec1st() {
 	case 0x22:
 	case 0x23: {
 		int24_t* dst = arith(ArithOperation::Add);
-		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
@@ -239,7 +237,6 @@ void Emulator::exec1st() {
 	case 0x26:
 	case 0x27: {
 		int24_t* dst = arith(ArithOperation::Sub);
-		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
@@ -248,7 +245,6 @@ void Emulator::exec1st() {
 	case 0x2A:
 	case 0x2B: {
 		int24_t* dst = arith(ArithOperation::And);
-		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
@@ -257,7 +253,6 @@ void Emulator::exec1st() {
 	case 0x2E:
 	case 0x2F: {
 		int24_t* dst = arith(ArithOperation::Or);
-		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
@@ -266,7 +261,6 @@ void Emulator::exec1st() {
 	case 0x32:
 	case 0x33: {
 		int24_t* dst = arith(ArithOperation::Xor);
-		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
@@ -330,6 +324,7 @@ void Emulator::exec1st() {
 	case 0xC5: //Load CIR imm
 		CIR.value = insn;
 		break;
+
 	case 0xCA: //Load ACC1 imm
 		ACC1.value = insn;
 		processACCValue(ACC1.value); //Set flags
@@ -584,6 +579,27 @@ void Emulator::exec2nd() {
 				AX3L.value = getMAC(1, MACBits::Upper);
 				sample_out_cb(Channel::out_3L, AX3L.value);
 			}
+		}
+		break;
+
+	case 0x23:
+		switch (opcode2_args) {
+		case 0:
+			CMEM[cmemAddressing()] = CR0.value;
+			printf("CR0 is %06X\n", CR0.value);
+			break;
+		case 1:
+			CMEM[cmemAddressing()] = CR1.value;
+			printf("CR1 is %06X\n", CR1.value);
+			break;
+		case 2:
+			CMEM[cmemAddressing()] = CR2.value;
+			printf("CR2 is %06X\n", CR2.value);
+			break;
+		case 3:
+			CMEM[cmemAddressing()] = CR3.value;
+			printf("CR3 is %06X\n", CR3.value);
+			break;
 		}
 		break;
 
