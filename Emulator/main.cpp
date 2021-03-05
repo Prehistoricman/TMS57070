@@ -1,5 +1,3 @@
-using namespace std;
-
 #include <cstdio>
 #include <iostream> //cout, etc.
 #include <fstream> //std::ifstream
@@ -7,6 +5,7 @@ using namespace std;
 #include <cstring> //memcpy
 #include <cstdint>
 #include <cassert>
+using namespace std;
 
 #include "TMS57070.h"
 
