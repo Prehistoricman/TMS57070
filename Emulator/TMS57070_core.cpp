@@ -30,9 +30,9 @@ int24_t* Emulator::loadACC() {
 		break;
 	case 3:
 		if (opcode1_flag8) {
-			result = getMAC(2, MACBits::Upper);
+			result = MACC2_delayed2.getUpper().value;
 		} else {
-			result = getMAC(1, MACBits::Upper);
+			result = MACC1_delayed2.getUpper().value;
 		}
 		break;
 	default:
@@ -69,9 +69,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 	case 1: //DMEM op MACCx
 		lhs.value = DMEM[dmemAddressing()];
 		if (opcode1_flag8) {
-			rhs.value = MACC2.value;
+			rhs.value = MACC2.getUpper().value;
 		} else {
-			rhs.value = MACC1.value;
+			rhs.value = MACC1.getUpper().value;
 		}
 		break;
 	case 2: //CMEM op ACCx
@@ -85,9 +85,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 	case 3: //CMEM op MACCx
 		lhs.value = CMEM[cmemAddressing()];
 		if (opcode1_flag8) {
-			rhs.value = MACC2.value;
+			rhs.value = MACC2.getUpper().value;
 		} else {
-			rhs.value = MACC1.value;
+			rhs.value = MACC1.getUpper().value;
 		}
 		break;
 	default:
@@ -429,16 +429,16 @@ void Emulator::exec2nd() {
 		if (opcode2_flag4) {
 			//MACC2
 			if (opcode2_flag8) {
-				CMEM[cmemAddressing()] = getMAC(2, MACBits::Upper);
+				CMEM[cmemAddressing()] = MACC2_delayed2.getUpper().value;
 			} else {
-				DMEM[dmemAddressing()] = getMAC(2, MACBits::Upper);
+				DMEM[dmemAddressing()] = MACC2_delayed2.getUpper().value;
 			}
 		} else {
 			//MACC1
 			if (opcode2_flag8) {
-				CMEM[cmemAddressing()] = getMAC(1, MACBits::Upper);
+				CMEM[cmemAddressing()] = MACC1_delayed2.getUpper().value;
 			} else {
-				DMEM[dmemAddressing()] = getMAC(1, MACBits::Upper);
+				DMEM[dmemAddressing()] = MACC1_delayed2.getUpper().value;
 			}
 		}
 		break;
@@ -446,16 +446,16 @@ void Emulator::exec2nd() {
 		if (opcode2_flag4) {
 			//MACC2
 			if (opcode2_flag8) {
-				CMEM[cmemAddressing()] = getMAC(2, MACBits::Lower);
+				CMEM[cmemAddressing()] = MACC2_delayed2.getLower().value;
 			} else {
-				DMEM[dmemAddressing()] = getMAC(2, MACBits::Lower);
+				DMEM[dmemAddressing()] = MACC2_delayed2.getLower().value;
 			}
 		} else {
 			//MACC1
 			if (opcode2_flag8) {
-				CMEM[cmemAddressing()] = getMAC(1, MACBits::Lower);
+				CMEM[cmemAddressing()] = MACC1_delayed2.getLower().value;
 			} else {
-				DMEM[dmemAddressing()] = getMAC(1, MACBits::Lower);
+				DMEM[dmemAddressing()] = MACC1_delayed2.getLower().value;
 			}
 		}
 		break;
@@ -527,18 +527,18 @@ void Emulator::exec2nd() {
 	case 0x18:
 		if (opcode2_flag8) { //right channel
 			if (opcode2_flag4) {
-				AX1R.value = getMAC(2, MACBits::Upper);
+				AX1R.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_1R, AX1R.value);
 			} else {
-				AX1R.value = getMAC(1, MACBits::Upper);
+				AX1R.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_1R, AX1R.value);
 			}
 		} else { //left channel
 			if (opcode2_flag4) {
-				AX1L.value = getMAC(2, MACBits::Upper);
+				AX1L.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_1L, AX1L.value);
 			} else {
-				AX1L.value = getMAC(1, MACBits::Upper);
+				AX1L.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_1L, AX1L.value);
 			}
 		}
@@ -546,18 +546,18 @@ void Emulator::exec2nd() {
 	case 0x19:
 		if (opcode2_flag8) { //right channel
 			if (opcode2_flag4) {
-				AX2R.value = getMAC(2, MACBits::Upper);
+				AX2R.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_2R, AX2R.value);
 			} else {
-				AX2R.value = getMAC(1, MACBits::Upper);
+				AX2R.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_2R, AX2R.value);
 			}
 		} else { //left channel
 			if (opcode2_flag4) {
-				AX2L.value = getMAC(2, MACBits::Upper);
+				AX2L.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_2L, AX2L.value);
 			} else {
-				AX2L.value = getMAC(1, MACBits::Upper);
+				AX2L.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_2L, AX2L.value);
 			}
 		}
@@ -565,18 +565,18 @@ void Emulator::exec2nd() {
 	case 0x1A:
 		if (opcode2_flag8) { //right channel
 			if (opcode2_flag4) {
-				AX3R.value = getMAC(2, MACBits::Upper);
+				AX3R.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_3R, AX3R.value);
 			} else {
-				AX3R.value = getMAC(1, MACBits::Upper);
+				AX3R.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_3R, AX3R.value);
 			}
 		} else { //left channel
 			if (opcode2_flag4) {
-				AX3L.value = getMAC(2, MACBits::Upper);
+				AX3L.value = MACC2_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_3L, AX3L.value);
 			} else {
-				AX3L.value = getMAC(1, MACBits::Upper);
+				AX3L.value = MACC1_delayed2.getUpper().value;
 				sample_out_cb(Channel::out_3L, AX3L.value);
 			}
 		}
@@ -636,16 +636,6 @@ void Emulator::exec2nd() {
 	default:
 		tms_printf("Unhandled 2nd instruction: %08X\n", insn);
 		break;
-	}
-}
-
-int32_t Emulator::getMAC(uint8_t mac, MACBits bits) {
-	//Apply MAC output shifter
-	//TODO: everything
-	if (mac == 1) {
-		return MACC1_delayed2.value;
-	} else {
-		return MACC2_delayed2.value;
 	}
 }
 

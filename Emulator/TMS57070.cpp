@@ -17,8 +17,8 @@ void Emulator::reset() {
 	DMEM[7] = 0x111111;
 	DMEM[1] = 0x888888;
 	DMEM[0x10] = 0xDAD;
-	MACC1.value = 0xBADBEEF;
-	MACC2.value = 0xBEAD;
+	MACC1.set(0xBADBEEF000000);
+	MACC2.set(0xBEAD000000);
 	ACC2.value = 0xCAFE;
 }
 
@@ -62,10 +62,10 @@ void Emulator::step() {
 	}
 
 	//Apply MACC pipeline
-	MACC1_delayed2.value = MACC1_delayed1.value;
-	MACC2_delayed2.value = MACC2_delayed1.value;
-	MACC1_delayed1.value = MACC1.value;
-	MACC2_delayed1.value = MACC2.value;
+	MACC1_delayed2.set(MACC1_delayed1);
+	MACC2_delayed2.set(MACC2_delayed1);
+	MACC1_delayed1.set(MACC1);
+	MACC2_delayed1.set(MACC2);
 
 	//Check if there is an interrupt to jump to
 	//Are we FREE?

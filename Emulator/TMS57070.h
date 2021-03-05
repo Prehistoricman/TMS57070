@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "TMS57070_MAC.h"
+
 #define TMSDEBUG 1
 #if TMSDEBUG
 #define tms_printf printf
@@ -15,27 +17,27 @@ constexpr int32_t INT24_MIN = -0x800000;
 
 namespace TMS57070 {
 
-    typedef struct {
+    struct uint9_t {
         uint16_t value : 9;
-    } uint9_t;
+    };
 
-    typedef struct {
+    struct uint12_t {
         uint16_t value : 12;
-    } uint12_t;
+    };
 
-    typedef struct {
+    struct uint24_t {
         uint32_t value : 24;
-    } uint24_t;
+    };
 
-    typedef struct {
+    struct int24_t {
         int32_t value : 24;
-    } int24_t;
+    };
 
-    typedef struct {
+    struct uint52_t {
         uint64_t value : 52;
-    } uint52_t;
+    };
 
-    typedef union {
+    union cr0_t {
         uint32_t value : 24;
         uint8_t bytes[3];
         struct {
@@ -43,9 +45,9 @@ namespace TMS57070 {
             uint8_t byte1 : 8;
             uint8_t byte2 : 8;
         };
-    } cr0_t;
+    };
 
-    typedef union {
+    union cr1_t {
         uint32_t value : 24;
         uint8_t bytes[3];
         struct {
@@ -76,9 +78,9 @@ namespace TMS57070 {
             uint8_t unk2 : 1;
             uint8_t LCMEM : 1;
         };
-    } cr1_t;
+    };
 
-    typedef union {
+    union cr2_t {
         uint32_t value : 24;
         uint8_t bytes[3];
         struct {
@@ -110,9 +112,9 @@ namespace TMS57070 {
             uint8_t LVOL : 1;
             uint8_t unk3 : 1;
         };
-    } cr2_t;
+    };
 
-    typedef union {
+    union cr3_t {
         uint32_t value : 24;
         uint8_t bytes[3];
         struct {
@@ -130,16 +132,16 @@ namespace TMS57070 {
             uint8_t unk4 : 1;
             uint8_t unk5 : 1;
         };
-    } cr3_t;
+    };
 
     //For CA, DIR, etc. registers
-    typedef union {
+    union addr_reg_t {
         uint32_t value : 24;
         struct {
             uint12_t one;
             uint12_t two;
         };
-    } addr_reg_t;
+    };
 
     enum class Channel {
         in_1L,
@@ -171,10 +173,10 @@ namespace TMS57070 {
         Cmp, //compare: subtract without changing value
     };
 
-    typedef struct {
+    struct interrupt_vector_t {
         uint9_t PC;
         uint8_t flag; //Flag of the specified interrupt
-    } interrupt_vector_t;
+    };
 
     class Emulator {
     public:
@@ -190,7 +192,6 @@ namespace TMS57070 {
         void exec1st();
         void exec2nd();
         interrupt_vector_t int_vector_decode(uint8_t);
-        int32_t getMAC(uint8_t mac, MACBits bits);
         uint32_t cmemAddressing();
         uint32_t dmemAddressing();
         int24_t* loadACC();
@@ -215,8 +216,8 @@ namespace TMS57070 {
         uint8_t RPTC; //Number of repeats remaining
 
         //52-bit
-        uint52_t MACC1;
-        uint52_t MACC2;
+        MAC MACC1{ this };
+        MAC MACC2{ this };
 
         //24-bit
         int24_t ACC1;
@@ -259,11 +260,11 @@ namespace TMS57070 {
         uint8_t opcode2_args;
 
         //MACC values delayed by 1 cycle
-        uint52_t MACC1_delayed1;
-        uint52_t MACC2_delayed1;
+        MAC MACC1_delayed1{ this };
+        MAC MACC2_delayed1{ this };
         //MACC values delayed by 2 cycles
-        uint52_t MACC1_delayed2;
-        uint52_t MACC2_delayed2;
+        MAC MACC1_delayed2{ this };
+        MAC MACC2_delayed2{ this };
     };
 
 }
