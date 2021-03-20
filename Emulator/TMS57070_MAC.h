@@ -17,6 +17,13 @@ namespace TMS57070 {
 		};
 	};
 
+	enum class signs_t {
+		SS,
+		SU,
+		US,
+		UU
+	};
+
 	class MAC {
 	public:
 		MAC(Emulator* dsp);
@@ -31,15 +38,23 @@ namespace TMS57070 {
 		void clearUpper();
 		void clearLower();
 
-		void multiply(int24_t value);
-		void multiply(MAC mac);
+		void multiply(int24_t value, signs_t signs);
+		void multiply(int24_t lhs, int24_t rhs, signs_t signs);
+		void multiply(MAC mac, signs_t signs);
 
-		void mac(int24_t value);
-		void mac(MAC mac);
+		void mac(int24_t value, signs_t signs);
+		void mac(int24_t lhs, int24_t rhs, signs_t signs);
+		void mac(MAC mac, signs_t signs);
+
+		void shift(int8_t amount);
 
 		int16_t output_shift;
 
 	private:
+		void updateOutputShift();
+		int64_t mult_internal(int64_t lhs, int64_t rhs);
+		int64_t unsign(int64_t value);
+
 		mac_value_internal_t value;
 
 		Emulator* dsp;

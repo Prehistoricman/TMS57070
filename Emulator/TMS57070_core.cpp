@@ -173,14 +173,14 @@ void Emulator::exec1st() {
 	case 0x00: //NOP
 		break;
 
-
 	case 0x4: //Load accumulator unsigned
 	case 0x5:
 	case 0x6:
-	case 0x7: {
+	case 0x7:
+	{
 		int24_t* dst = loadACC();
-		if (dst->value >= 0x800000) {
-			dst->value = ~dst->value;
+		if (dst->value < 0) { //TODO: test this
+			dst->value = ~dst->value + 1;
 		}
 
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
@@ -200,7 +200,8 @@ void Emulator::exec1st() {
 	case 0x10: //Load accumulator
 	case 0x11:
 	case 0x12:
-	case 0x13: {
+	case 0x13:
+	{
 		int24_t* dst = loadACC();
 
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
@@ -209,7 +210,8 @@ void Emulator::exec1st() {
 	case 0x14: //Increment and load accumulator
 	case 0x15:
 	case 0x16:
-	case 0x17: {
+	case 0x17:
+	{
 		int24_t* dst = loadACC();
 		dst->value++;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
@@ -218,16 +220,48 @@ void Emulator::exec1st() {
 	case 0x18: //Decrement and load accumulator
 	case 0x19:
 	case 0x1A:
-	case 0x1B: {
+	case 0x1B:
+	{
 		int24_t* dst = loadACC();
 		dst->value--;
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
+	case 0x1C:
+	{ //SHACC shift accumulator
+		int24_t* dst = &ACC1;
+		if (opcode1_flag4) {
+			dst = &ACC2;
+		}
+		int32_t value = dst->value;
+		if (opcode1_flag8) {
+			//shift left
+			value = value << 1;
+		} else {
+			//Shift right
+			value = value >> 1;
+		}
+		value = processACCValue(value);
+		dst->value = value;
+	} break;
+	case 0x1D:
+		if (opcode1_flag8) {
+			assert(false); //idk
+		} else {
+			//ZACC zero accumulator
+			int24_t* dst = &ACC1;
+			if (opcode1_flag4) {
+				dst = &ACC2;
+			}
+			dst->value = 0;
+		}
+		break;
+
 	case 0x20: //Add accumulator
 	case 0x21:
 	case 0x22:
-	case 0x23: {
+	case 0x23:
+	{
 		int24_t* dst = arith(ArithOperation::Add);
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -235,7 +269,8 @@ void Emulator::exec1st() {
 	case 0x24: //Sub accumulator
 	case 0x25:
 	case 0x26:
-	case 0x27: {
+	case 0x27:
+	{
 		int24_t* dst = arith(ArithOperation::Sub);
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -243,7 +278,8 @@ void Emulator::exec1st() {
 	case 0x28: //AND accumulator
 	case 0x29:
 	case 0x2A:
-	case 0x2B: {
+	case 0x2B:
+	{
 		int24_t* dst = arith(ArithOperation::And);
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -251,7 +287,8 @@ void Emulator::exec1st() {
 	case 0x2C: //OR accumulator
 	case 0x2D:
 	case 0x2E:
-	case 0x2F: {
+	case 0x2F:
+	{
 		int24_t* dst = arith(ArithOperation::Or);
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -259,7 +296,8 @@ void Emulator::exec1st() {
 	case 0x30: //XOR accumulator
 	case 0x31:
 	case 0x32:
-	case 0x33: {
+	case 0x33:
+	{
 		int24_t* dst = arith(ArithOperation::Xor);
 		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
@@ -267,8 +305,172 @@ void Emulator::exec1st() {
 	case 0x34: //CMP compare
 	case 0x35:
 	case 0x36:
-	case 0x37: {
+	case 0x37:
+	{
 		int24_t* dst = arith(ArithOperation::Cmp);
+	} break;
+
+	case 0x40: //Multiply CMEM by ACCx
+	case 0x41: //ACC2
+	case 0x44: //Unsigned CMEM
+	case 0x45: //ACC2
+	case 0x48: //Unsigned ACC
+	case 0x49: //ACC2
+	case 0x4C: //Unsigned both
+	case 0x4D: //ACC2
+	{
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
+
+		signs_t signs;
+		switch (opcode1) {
+		case 0x40: case 0x41: signs = signs_t::SS; break;
+		case 0x44: case 0x45: signs = signs_t::US; break;
+		case 0x48: case 0x49: signs = signs_t::SU; break;
+		case 0x4C: case 0x4D: signs = signs_t::UU; break;
+		}
+
+		MACx->multiply(cmem_word, *ACCx, signs);
+	} break;
+
+	case 0x42: //Multiply CMEM by DMEM
+	case 0x46: //unsigned CMEM
+	case 0x4A: //unsigned DMEM
+	case 0x4E: //unsigned both
+	{
+		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
+		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+		
+		signs_t signs;
+		switch (opcode1) {
+		case 0x42: signs = signs_t::SS; break;
+		case 0x46: signs = signs_t::US; break;
+		case 0x4A: signs = signs_t::SU; break;
+		case 0x4E: signs = signs_t::UU; break;
+		}
+
+		MACx->multiply(cmem_word, dmem_word, signs);
+	} break;
+
+	case 0x50: //MAC CMEM by ACCx
+	case 0x51: //ACC2
+	case 0x52: //MAC DMEM by ACCx
+	case 0x53:
+	{
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		int24_t word{};
+		if (opcode1 <= 0x51) {
+			word.value = CMEM[cmemAddressing()];
+		} else {
+			word.value = DMEM[dmemAddressing()];
+		}
+		MACx->mac(*ACCx, word, signs_t::SS);
+	} break;
+
+	case 0x62: //Multiply DMEM by ACC
+	case 0x63: //ACC2
+	{
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
+
+		MACx->multiply(*ACCx, dmem_word, signs_t::SS);
+	} break;
+
+	case 0x6C: //MAC CMEM by DMEM
+	case 0x6D: //unsigned CMEM
+	case 0x6E: //unsigned DMEM
+	case 0x6F: //unsigned both
+	{
+		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
+		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+		
+		signs_t signs;
+		switch (opcode1) {
+		case 0x6C: signs = signs_t::SS; break;
+		case 0x6D: signs = signs_t::US; break;
+		case 0x6E: signs = signs_t::SU; break;
+		case 0x6F: signs = signs_t::UU; break;
+		}
+
+		MACx->mac(cmem_word, dmem_word, signs);
+	} break;
+
+	case 0x70: //Multiply CMEM with DMEM and accumulate with shifted MAC
+	//case 0x71:
+	{
+		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
+		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
+
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		//Shift MAC right by 24
+		MACx->shift(-24);
+
+		MACx->mac(cmem_word, dmem_word, signs_t::SS);
+	} break;
+
+	case 0x78:
+	case 0x79: //Load MAC high and clear
+		if (opcode1_flag4) {
+			MACC2.setLower(0);
+		} else {
+			MACC1.setLower(0);
+		}
+		//Let this fall through to set MAC high
+	case 0x7A:
+	case 0x7B: //Load MAC high
+	case 0x7C:
+	case 0x7D: //Load MAC low
+	{
+		int24_t load_word;
+		if ((opcode1 & 0x1) != 0) { //Instructions 78 and 7A: DMEM and ACC1
+			if (opcode1_flag8) {
+				load_word.value = ACC1.value;
+			} else {
+				load_word.value = (int32_t)CMEM[cmemAddressing()];
+			}
+		} else { //Instructions 79 and 7B: CMEM and ACC2
+			if (opcode1_flag8) {
+				load_word.value = ACC2.value;
+			} else {
+				load_word.value = (int32_t)DMEM[dmemAddressing()];
+			}
+		}
+		if (opcode1 < 0x7C) { //load MAC high
+			if (opcode1_flag4) {
+				MACC2.setUpper(load_word.value);
+			} else {
+				MACC1.setUpper(load_word.value);
+			}
+		} else { //load MAC low
+			if (opcode1_flag4) {
+				MACC2.setLower(load_word.value);
+			} else {
+				MACC1.setLower(load_word.value);
+			}
+		}
 	} break;
 
 	case 0xC1: //Load register with immediate
@@ -339,7 +541,8 @@ void Emulator::exec1st() {
 	case 0xCD: //Load CR1 imm
 		CR1.value = insn;
 		break;
-	case 0xCE: { //Load CR2 imm
+	case 0xCE: //Load CR2 imm
+	{
 		//Handle flag behaviour
 		cr2_t temp;
 		temp.value = insn;
@@ -609,6 +812,10 @@ void Emulator::exec2nd() {
 		} else {
 			HIR.value = DMEM[dmemAddressing()];
 		}
+		break;
+
+	case 0x29: //MAC shifter mode
+		CR1.MOSM = opcode2_args;
 		break;
 
 	case 0x2C:

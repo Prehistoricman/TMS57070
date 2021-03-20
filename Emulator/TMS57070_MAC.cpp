@@ -13,8 +13,18 @@ MAC::MAC(Emulator* dsp) {
 	value.raw = 0;
 }
 
+void MAC::updateOutputShift() {
+	switch (dsp->CR1.MOSM) {
+	case 0: output_shift = 0; break;
+	case 1: output_shift = 2; break;
+	case 2: output_shift = 4; break;
+	case 3: output_shift = -8; break;
+	}
+}
+
 uint24_t MAC::getUpper() {
 	uint32_t upper = value.upper;
+	updateOutputShift();
 	if (output_shift >= 0) {
 		upper = upper << output_shift;
 	} else {
@@ -26,6 +36,7 @@ uint24_t MAC::getUpper() {
 
 uint24_t MAC::getLower() {
 	uint32_t lower = value.lower;
+	updateOutputShift();
 	if (output_shift >= 0) {
 		lower = lower << output_shift;
 	} else {
@@ -65,59 +76,163 @@ void MAC::clearLower() {
 	value.lower = 0;
 }
 
-const uint64_t SHIFT = 47;
-const uint64_t FACTOR = (uint64_t)1 << SHIFT;
-
-void MAC::multiply(int24_t rhs) {
-	double dx = (double)value.raw / FACTOR;
-	double dy = (double)((uint64_t)rhs.value << 24);
-
-	double dresult = dx * dy;
-	uint64_t result = (uint64_t)(dresult * FACTOR);
-
-	//TODO: saturation logic
-	//TODO: flags
-
-	value.raw = result;
-	printf("Multiplication resulted in %f raw: %X\n", dresult, value.raw);
-}
-void MAC::multiply(MAC mac) {
-	double dx = (double)value.raw / FACTOR;
-	double dy = (double)mac.value.raw / FACTOR;
-
-	double dresult = dx * dy;
-	uint64_t result = (uint64_t)(dresult * FACTOR);
-
-	//TODO: saturation logic
-	//TODO: flags
-
-	value.raw = result;
-	printf("Multiplication resulted in %f raw: %X\n", dresult, value.raw);
+void MAC::shift(int8_t amount) {
+	if (amount < 0) { //Right shift
+		value.raw = value.raw >> -amount;
+	} else { //left shift
+		value.raw = value.raw << amount;
+	}
 }
 
-void MAC::mac(int24_t rhs) {
-	double dx = (double)value.raw / FACTOR;
-	double dy = (double)((uint64_t)rhs.value << 24);
+constexpr uint64_t SHIFT_52 = 48;
+constexpr uint64_t FACTOR_52 = (int64_t)1 << (SHIFT_52 - 1);
+constexpr uint64_t SHIFT_24 = 24;
+constexpr uint64_t FACTOR_24 = (int64_t)1 << (SHIFT_24 - 1);
 
-	double dresult = dx * dy;
-	uint64_t result = (uint64_t)(dresult * FACTOR);
-
+int64_t MAC::mult_internal(int64_t lhs, int64_t rhs) { //Incoming lhs and rhs are aligned like a MACC
 	//TODO: saturation logic
 	//TODO: flags
-
-	value.raw += result;
-	printf("Multiplication resulted in %f raw: %X\n", dresult, value.raw);
+	double lhs_double = ((double)lhs) / FACTOR_52;
+	double rhs_double = ((double)rhs) / FACTOR_52;
+	
+	double dresult = lhs_double * rhs_double;
+	int64_t result = (int64_t)(dresult * FACTOR_52);
+	
+	printf("Multiplication resulted in %f raw: %llX\n", dresult, result);
+	return result;
 }
-void MAC::mac(MAC mac) {
-	double dx = (double)value.raw / FACTOR;
-	double dy = (double)mac.value.raw / FACTOR;
 
-	double dresult = dx * dy;
-	uint64_t result = (uint64_t)(dresult * FACTOR);
+int64_t MAC::unsign(int64_t value) {
+	//Convert a signed MACC-like number into an unsigned one
+	return value;
+}
 
+void MAC::multiply(int24_t rhs, signs_t signs) {
+	int64_t lhs_aligned;
+	int64_t rhs_aligned;
+
+	if (signs == signs_t::SS || signs == signs_t::SU) {
+		lhs_aligned = value.raw;
+	} else {
+		lhs_aligned = unsign(value.raw);
+	}
+	if (signs == signs_t::SS || signs == signs_t::US) {
+		rhs_aligned = ((int64_t)rhs.value) << SHIFT_24;
+	} else {
+		rhs_aligned = unsign(((int64_t)rhs.value) << SHIFT_24);
+	}
+	
+	value.raw = mult_internal(lhs_aligned, rhs_aligned);
+}
+void MAC::multiply(int24_t lhs, int24_t rhs, signs_t signs) {
+	int64_t lhs_aligned;
+	int64_t rhs_aligned;
+
+	if (signs == signs_t::SS || signs == signs_t::SU) {
+		lhs_aligned = ((int64_t)lhs.value) << SHIFT_24;
+	} else {
+		lhs_aligned = unsign(((int64_t)lhs.value) << SHIFT_24);
+	}
+	if (signs == signs_t::SS || signs == signs_t::US) {
+		rhs_aligned = ((int64_t)rhs.value) << SHIFT_24;
+	} else {
+		rhs_aligned = unsign(((int64_t)rhs.value) << SHIFT_24);
+	}
+	
+	value.raw = mult_internal(lhs_aligned, rhs_aligned);
+}
+void MAC::multiply(MAC mac, signs_t signs) {
+	int64_t lhs_aligned;
+	int64_t rhs_aligned;
+
+	if (signs == signs_t::SS || signs == signs_t::SU) {
+		lhs_aligned = value.raw;
+	} else {
+		lhs_aligned = unsign(value.raw);
+	}
+	if (signs == signs_t::SS || signs == signs_t::US) {
+		rhs_aligned = mac.value.raw;
+	} else {
+		rhs_aligned = unsign(mac.value.raw);
+	}
+	
+	value.raw = mult_internal(lhs_aligned, rhs_aligned);
+}
+
+void MAC::mac(int24_t rhs, signs_t signs) {
+	int64_t current = value.raw;
+	//Now use the normal multiply function
+	multiply(rhs, signs);
+	value.raw += current;
+	//TODO: calculate flags after accumulation
+}
+void MAC::mac(int24_t lhs, int24_t rhs, signs_t signs) {
+	int64_t current = value.raw;
+	//Now use the normal multiply function
+	multiply(lhs, rhs, signs);
+	value.raw += current;
+	//TODO: calculate flags after accumulation
+}
+void MAC::mac(MAC mac, signs_t signs) {
+	int64_t current = value.raw;
+	//Now use the normal multiply function
+	multiply(mac, signs);
+	value.raw += current;
+	//TODO: calculate flags after accumulation
+}
+
+#if 0
+int64_t MAC::mult_internal(double lhs, double rhs) {
 	//TODO: saturation logic
 	//TODO: flags
-
-	value.raw += result;
-	printf("Multiplication resulted in %f raw: %X\n", dresult, value.raw);
+	
+	double dresult = lhs * rhs;
+	int64_t result = (int64_t)(dresult * FACTOR_52);
+	
+	printf("Multiplication resulted in %f raw: %llX\n", dresult, result);
 }
+
+void MAC::multiply(int24_t rhs, signs_t signs) {
+	double lhs_double = (double)value.raw / FACTOR_52;
+	double rhs_double = (double)((int64_t)rhs.value) / FACTOR_24;
+	printf("Multiplication %f x %f\n", lhs_double, rhs_double);
+
+	value.raw = mult_internal(lhs_double, rhs_double);
+}
+void MAC::multiply(int24_t lhs, int24_t rhs, signs_t signs) {
+	double lhs_double = (double)((int64_t)lhs.value) / FACTOR_24;
+	double rhs_double = (double)((int64_t)rhs.value) / FACTOR_24;
+	printf("Multiplication %f x %f\n", lhs_double, rhs_double);
+
+	value.raw = mult_internal(lhs_double, rhs_double);
+}
+void MAC::multiply(MAC mac, signs_t signs) {
+	double lhs_double = (double)value.raw / FACTOR_52;
+	double rhs_double = (double)mac.value.raw / FACTOR_52;
+	printf("Multiplication %f x %f\n", lhs_double, rhs_double);
+
+	value.raw = mult_internal(lhs_double, rhs_double);
+}
+
+void MAC::mac(int24_t rhs, signs_t signs) {
+	double lhs_double = (double)value.raw / FACTOR_52;
+	double rhs_double = (double)((int64_t)rhs.value) / FACTOR_24;
+	printf("MAC %llX + %f x %f\n", value.raw, lhs_double, rhs_double);
+
+	value.raw += mult_internal(lhs_double, rhs_double);;
+}
+void MAC::mac(int24_t lhs, int24_t rhs, signs_t signs) {
+	double lhs_double = (double)((int64_t)lhs.value) / FACTOR_24;
+	double rhs_double = (double)((int64_t)rhs.value) / FACTOR_24;
+	printf("MAC %llX + %f x %f\n", value.raw, lhs_double, rhs_double);
+
+	value.raw += mult_internal(lhs_double, rhs_double);;
+}
+void MAC::mac(MAC mac, signs_t signs) {
+	double lhs_double = (double)value.raw / FACTOR_52;
+	double rhs_double = (double)mac.value.raw / FACTOR_52;
+	printf("MAC %llX + %f x %f\n", value.raw, lhs_double, rhs_double);
+
+	value.raw += mult_internal(lhs_double, rhs_double);;
+}
+#endif
