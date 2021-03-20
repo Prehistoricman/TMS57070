@@ -205,6 +205,11 @@ namespace TMS57070 {
         uint32_t DMEM[512];
         uint32_t XMEM[512]; //TODO: How big will this need to be?
 
+        cr0_t CR0;
+        cr1_t CR1;
+        cr2_t CR2;
+        cr3_t CR3;
+
     private: //Registers
         uint8_t SP;
 
@@ -236,11 +241,6 @@ namespace TMS57070 {
         int24_t AX2R;
         int24_t AX3L;
         int24_t AX3R;
-
-        cr0_t CR0;
-        cr1_t CR1;
-        cr2_t CR2;
-        cr3_t CR3;
 
         addr_reg_t CA;
         addr_reg_t DA;
