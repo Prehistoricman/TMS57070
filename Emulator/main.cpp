@@ -8,6 +8,7 @@
 using namespace std;
 
 #include "TMS57070.h"
+#include "TMS57070_MAC.h"
 
 constexpr uint32_t PMEM_MAX_WORDS = 0x1FF;
 constexpr uint32_t CMEM_MAX_WORDS = 0x0FF;
@@ -68,5 +69,11 @@ int main() { //int argc, char* argv[]
     for (uint16_t i = 0; i < 60; i++) { //TODO: input and output
         dsp.step();
     }
+    
+#if 0 //Testing MAC function
+    TMS57070::MAC test_mac(nullptr);
+    test_mac.multiply(TMS57070::int24_t{ 0x3FFFFF }, TMS57070::int24_t{ 0x3FFFFF }, TMS57070::signs_t::SS);
+    test_mac.mac(TMS57070::int24_t{ 0x7FFFFF }, TMS57070::int24_t{ 0x800000 }, TMS57070::signs_t::SS);
+#endif
     return 0;
 }
