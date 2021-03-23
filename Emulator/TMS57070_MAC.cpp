@@ -70,7 +70,7 @@ void MAC::setUpper(int32_t upper) {
 
 void MAC::setLower(uint32_t lower) {
 	value.raw_unsigned &= (MAC_BITS_UPPER_MASK | MAC_BITS_EXTENDED_MASK); //Clear lower
-	value.raw_unsigned |= lower;
+	value.raw_unsigned |= lower & UINT24_MAX;
 }
 
 void MAC::clear() {

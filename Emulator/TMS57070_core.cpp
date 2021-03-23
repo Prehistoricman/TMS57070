@@ -501,17 +501,17 @@ void Emulator::exec1st() {
 	case 0x7D: //Load MAC low
 	{
 		int24_t load_word;
-		if ((opcode1 & 0x1) != 0) { //Instructions 78 and 7A: DMEM and ACC1
+		if ((opcode1 & 0x1) == 0) { //Instructions 78, 7A, 7C: DMEM and ACC1
 			if (opcode1_flag8) {
 				load_word.value = ACC1.value;
 			} else {
-				load_word.value = (int32_t)CMEM[cmemAddressing()];
+				load_word.value = (int32_t)DMEM[dmemAddressing()];
 			}
-		} else { //Instructions 79 and 7B: CMEM and ACC2
+		} else { //Instructions 79, 7B, 7D: CMEM and ACC2
 			if (opcode1_flag8) {
 				load_word.value = ACC2.value;
 			} else {
-				load_word.value = (int32_t)DMEM[dmemAddressing()];
+				load_word.value = (int32_t)CMEM[cmemAddressing()];
 			}
 		}
 		if (opcode1 < 0x7C) { //load MAC high
