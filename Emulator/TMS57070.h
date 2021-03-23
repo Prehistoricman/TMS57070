@@ -1,10 +1,11 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <string>
 
 #include "TMS57070_MAC.h"
 
-#define TMSDEBUG 1
+#define TMSDEBUG 0
 #if TMSDEBUG
 #define tms_printf printf
 #else
@@ -136,7 +137,6 @@ namespace TMS57070 {
 
     //For CA, DIR, etc. registers
     union addr_reg_t {
-        uint32_t value : 24;
         struct {
             uint12_t one;
             uint12_t two;
@@ -158,11 +158,6 @@ namespace TMS57070 {
     };
 
     using sample_out_callback_t = void(Channel channel, int32_t value);
-
-    enum class MACBits {
-        Upper,
-        Lower,
-    };
 
     enum class ArithOperation {
         Add,
@@ -187,17 +182,19 @@ namespace TMS57070 {
         void ext_interrupt(uint8_t interrupt);
         void hir_interrupt(uint24_t input);
         uint32_t hir_out();
+        std::string reportState();
 
     private:
         void exec1st();
         void exec2nd();
+        void execJmp();
+        void execPostIncrements();
         interrupt_vector_t int_vector_decode(uint8_t);
         uint32_t cmemAddressing();
         uint32_t dmemAddressing();
         int24_t* loadACC();
         int24_t* arith(ArithOperation operation);
         int32_t processACCValue(int32_t acc);
-        void execJmp();
 
     public:
         uint32_t PMEM[512];

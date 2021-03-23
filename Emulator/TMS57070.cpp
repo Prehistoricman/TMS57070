@@ -59,6 +59,7 @@ void Emulator::step() {
 		exec2nd();
 		exec1st();
 		//TODO: handle post-increments here?
+		execPostIncrements();
 	}
 
 	//Apply MACC pipeline
@@ -171,4 +172,88 @@ void Emulator::ext_interrupt(uint8_t interrupt) {
 void Emulator::hir_interrupt(uint24_t input) {
 	CR2.HIR_IF = 1;
 	HIR.value = input.value;
+}
+
+static std::string jsonValue(const char* name, uint32_t value) {
+	std::string build;
+	constexpr int TEMP_LEN = 16;
+	char temp[TEMP_LEN];
+	
+	build.append("\"");
+	build.append(name);
+	build.append("\":\"");
+	snprintf(temp, TEMP_LEN, "%06lX", value);
+	int temp_pos = 0;
+	if (strlen(temp) > 6) {
+		temp_pos = strlen(temp) - 6;
+	}
+	assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
+	build.append(temp + temp_pos);
+	build.append("\",");
+
+	return build;
+}
+
+//Returns a JSON string with CMEM, DMEM, and all the registers
+std::string Emulator::reportState() {
+	std::string report;
+	constexpr int TEMP_LEN = 16;
+	char temp[TEMP_LEN];
+	report.append("{");
+	
+	report.append(jsonValue("ACC1", ACC1.value));
+	report.append(jsonValue("ACC2", ACC2.value));
+	report.append(jsonValue("MAC1", MACC1.getUpper().value));
+	report.append(jsonValue("MAC2", MACC2.getUpper().value));
+	report.append(jsonValue("MAC1L", MACC1.getLower().value));
+	report.append(jsonValue("MAC2L", MACC2.getLower().value));
+	report.append(jsonValue("CA1", CA.one.value));
+	report.append(jsonValue("CA2", CA.two.value));
+	report.append(jsonValue("DA1", DA.one.value));
+	report.append(jsonValue("DA2", DA.two.value));
+	report.append(jsonValue("XRD", XRD.value));
+	report.append(jsonValue("CR0", CR0.value));
+	report.append(jsonValue("CR1", CR1.value));
+	report.append(jsonValue("CR2", CR2.value));
+	report.append(jsonValue("CR3", CR3.value));
+	report.append(jsonValue("CIR1", CIR.one.value));
+	report.append(jsonValue("CIR2", CIR.two.value));
+	report.append(jsonValue("DIR1", DIR.one.value));
+	report.append(jsonValue("DIR2", DIR.two.value));
+	
+	//report CMEM
+	report.append("\"CMEM\":[");
+	for (int i = 0; i < 255; i++) {
+		report.append("\"");
+		snprintf(temp, TEMP_LEN, "%06lX", CMEM[i]);
+		int temp_pos = 0;
+		if (strlen(temp) > 6) {
+			temp_pos = strlen(temp) - 6;
+		}
+		assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
+		report.append(temp + temp_pos);
+		report.append("\",");
+	}
+	report.pop_back(); //Delete last comma
+	report.append("]");
+	report.append(",");
+	
+	//report DMEM
+	report.append("\"DMEM\":[");
+	for (int i = 0; i < 255; i++) {
+		report.append("\"");
+		snprintf(temp, TEMP_LEN, "%06lX", DMEM[i]);
+		int temp_pos = 0;
+		if (strlen(temp) > 6) {
+			temp_pos = strlen(temp) - 6;
+		}
+		assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
+		report.append(temp + temp_pos);
+		report.append("\",");
+	}
+	report.pop_back(); //Delete last comma
+	report.append("]");
+	
+	report.append("}");
+	return report;
 }

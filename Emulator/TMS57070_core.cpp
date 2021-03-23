@@ -144,11 +144,11 @@ int32_t Emulator::processACCValue(int32_t acc) {
 	if (CR1.AOVM) { //saturation logic on
 		if (acc < INT24_MIN) {
 			//Saturate at minimum
-			printf("processACCValue: saturating value %d (%X) at -ve\n", acc, acc);
+			tms_printf("processACCValue: saturating value %d (%X) at -ve\n", acc, acc);
 			acc = INT24_MIN;
 			CR1.AOV = 1;
 		} else if (acc > INT24_MAX) {
-			printf("processACCValue: saturating value %d (%X) at +ve\n", acc, acc);
+			tms_printf("processACCValue: saturating value %d (%X) at +ve\n", acc, acc);
 			acc = INT24_MAX;
 			CR1.AOV = 1;
 		}
@@ -183,7 +183,7 @@ void Emulator::exec1st() {
 			dst->value = ~dst->value + 1;
 		}
 
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x8: //Load accumulator complemented
@@ -194,7 +194,7 @@ void Emulator::exec1st() {
 		int24_t* dst = loadACC();
 		dst->value = ~dst->value + 1; //TODO: saturation logic
 
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x10: //Load accumulator
@@ -204,7 +204,7 @@ void Emulator::exec1st() {
 	{
 		int24_t* dst = loadACC();
 
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x14: //Increment and load accumulator
@@ -214,7 +214,7 @@ void Emulator::exec1st() {
 	{
 		int24_t* dst = loadACC();
 		dst->value++;
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x18: //Decrement and load accumulator
@@ -224,7 +224,7 @@ void Emulator::exec1st() {
 	{
 		int24_t* dst = loadACC();
 		dst->value--;
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x1C:
@@ -244,9 +244,10 @@ void Emulator::exec1st() {
 		value = processACCValue(value);
 		dst->value = value;
 	} break;
-	case 0x1D:
+
+	case 0x1D: //ZACC Zero accumulator (and something else)
 		if (opcode1_flag8) {
-			assert(false); //idk
+			//assert(false); //idk
 		} else {
 			//ZACC zero accumulator
 			int24_t* dst = &ACC1;
@@ -263,7 +264,7 @@ void Emulator::exec1st() {
 	case 0x23:
 	{
 		int24_t* dst = arith(ArithOperation::Add);
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x24: //Sub accumulator
@@ -272,7 +273,7 @@ void Emulator::exec1st() {
 	case 0x27:
 	{
 		int24_t* dst = arith(ArithOperation::Sub);
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x28: //AND accumulator
@@ -281,7 +282,7 @@ void Emulator::exec1st() {
 	case 0x2B:
 	{
 		int24_t* dst = arith(ArithOperation::And);
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x2C: //OR accumulator
@@ -290,7 +291,7 @@ void Emulator::exec1st() {
 	case 0x2F:
 	{
 		int24_t* dst = arith(ArithOperation::Or);
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x30: //XOR accumulator
@@ -299,7 +300,7 @@ void Emulator::exec1st() {
 	case 0x33:
 	{
 		int24_t* dst = arith(ArithOperation::Xor);
-		printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
+		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 	} break;
 
 	case 0x34: //CMP compare
@@ -310,6 +311,10 @@ void Emulator::exec1st() {
 		int24_t* dst = arith(ArithOperation::Cmp);
 	} break;
 
+	case 0x39:
+		//TODO
+		break;
+
 	case 0x40: //Multiply CMEM by ACCx
 	case 0x41: //ACC2
 	case 0x44: //Unsigned CMEM
@@ -319,23 +324,25 @@ void Emulator::exec1st() {
 	case 0x4C: //Unsigned both
 	case 0x4D: //ACC2
 	{
-		int24_t* ACCx = &ACC1;
-		if ((opcode1 & 1) == 1) ACCx = &ACC2;
-
 		MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
 
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
 		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
 
-		signs_t signs;
+		MACSigns signs;
 		switch (opcode1) {
-		case 0x40: case 0x41: signs = signs_t::SS; break;
-		case 0x44: case 0x45: signs = signs_t::US; break;
-		case 0x48: case 0x49: signs = signs_t::SU; break;
-		case 0x4C: case 0x4D: signs = signs_t::UU; break;
+		case 0x40: case 0x41: signs = MACSigns::SS; break;
+		case 0x44: case 0x45: signs = MACSigns::US; break;
+		case 0x48: case 0x49: signs = MACSigns::SU; break;
+		case 0x4C: case 0x4D: signs = MACSigns::UU; break;
 		}
 
-		MACx->multiply(cmem_word, *ACCx, signs);
+		MACx->multiply(cmem_word, *ACCx, signs, negate);
 	} break;
 
 	case 0x42: //Multiply CMEM by DMEM
@@ -343,21 +350,23 @@ void Emulator::exec1st() {
 	case 0x4A: //unsigned DMEM
 	case 0x4E: //unsigned both
 	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+		
 		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
 		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
 
-		MAC* MACx = &MACC1;
-		if (opcode1_flag4) MACx = &MACC2;
-		
-		signs_t signs;
+		MACSigns signs;
 		switch (opcode1) {
-		case 0x42: signs = signs_t::SS; break;
-		case 0x46: signs = signs_t::US; break;
-		case 0x4A: signs = signs_t::SU; break;
-		case 0x4E: signs = signs_t::UU; break;
+		case 0x42: signs = MACSigns::SS; break;
+		case 0x46: signs = MACSigns::US; break;
+		case 0x4A: signs = MACSigns::SU; break;
+		case 0x4E: signs = MACSigns::UU; break;
 		}
 
-		MACx->multiply(cmem_word, dmem_word, signs);
+		MACx->multiply(cmem_word, dmem_word, signs, negate);
 	} break;
 
 	case 0x50: //MAC CMEM by ACCx
@@ -365,11 +374,13 @@ void Emulator::exec1st() {
 	case 0x52: //MAC DMEM by ACCx
 	case 0x53:
 	{
-		int24_t* ACCx = &ACC1;
-		if ((opcode1 & 1) == 1) ACCx = &ACC2;
-
 		MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
 
 		int24_t word{};
 		if (opcode1 <= 0x51) {
@@ -377,21 +388,33 @@ void Emulator::exec1st() {
 		} else {
 			word.value = DMEM[dmemAddressing()];
 		}
-		MACx->mac(*ACCx, word, signs_t::SS);
+		MACx->mac(*ACCx, word, MACSigns::SS, negate);
 	} break;
 
+	case 0x60: //Multiply CMEM by ACC (and accumulate shifted MAC)
+	case 0x61: //ACC2
 	case 0x62: //Multiply DMEM by ACC
 	case 0x63: //ACC2
 	{
-		int24_t* ACCx = &ACC1;
-		if ((opcode1 & 1) == 1) ACCx = &ACC2;
-
 		MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
 
-		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
+		bool negate = opcode1_flag8;
 
-		MACx->multiply(*ACCx, dmem_word, signs_t::SS);
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		int24_t word{};
+		if (opcode1 <= 0x61) {
+			word.value = CMEM[cmemAddressing()];
+		} else {
+			word.value = DMEM[dmemAddressing()];
+		}
+
+		//Shift MAC right by 24
+		MACx->shift(-24);
+
+		MACx->mac(*ACCx, word, MACSigns::SS, negate);
 	} break;
 
 	case 0x6C: //MAC CMEM by DMEM
@@ -399,37 +422,70 @@ void Emulator::exec1st() {
 	case 0x6E: //unsigned DMEM
 	case 0x6F: //unsigned both
 	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+		
 		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
 		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
 
-		MAC* MACx = &MACC1;
-		if (opcode1_flag4) MACx = &MACC2;
-		
-		signs_t signs;
+		MACSigns signs;
 		switch (opcode1) {
-		case 0x6C: signs = signs_t::SS; break;
-		case 0x6D: signs = signs_t::US; break;
-		case 0x6E: signs = signs_t::SU; break;
-		case 0x6F: signs = signs_t::UU; break;
+		case 0x6C: signs = MACSigns::SS; break;
+		case 0x6D: signs = MACSigns::US; break;
+		case 0x6E: signs = MACSigns::SU; break;
+		case 0x6F: signs = MACSigns::UU; break;
 		}
 
-		MACx->mac(cmem_word, dmem_word, signs);
+		MACx->mac(cmem_word, dmem_word, signs, negate);
 	} break;
 
-	case 0x70: //Multiply CMEM with DMEM and accumulate with shifted MAC
-	//case 0x71:
+	case 0x70: //Multiply CMEM with DMEM (and accumulate with shifted MAC)
+	case 0x71: //Unsigned DMEM
 	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
 		int24_t cmem_word{ (int32_t)CMEM[cmemAddressing()] };
 		int24_t dmem_word{ (int32_t)DMEM[dmemAddressing()] };
 
-		MAC* MACx = &MACC1;
-		if (opcode1_flag4) MACx = &MACC2;
+		MACSigns signs = MACSigns::SS;
+		if (opcode1 == 0x71) {
+			signs = MACSigns::US;
+		}
 
 		//Shift MAC right by 24
 		MACx->shift(-24);
 
-		MACx->mac(cmem_word, dmem_word, signs_t::SS);
+		MACx->mac(cmem_word, dmem_word, signs, negate);
 	} break;
+
+	case 0x72: //SHMAC shift MACC
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		if (opcode1_flag8) { //Left shift
+			MACx->shift(1);
+		} else { //Right shift
+			MACx->shift(-1);
+		}
+	} break;
+
+	case 0x73: //Zero MACC (and something else)
+		if (opcode1_flag8) {
+			//assert(false); //idk
+		} else {
+			//Zero MACC
+			MAC* MACx = &MACC1;
+			if (opcode1_flag4) MACx = &MACC2;
+
+			MACx->set(0);
+		}
+		break;
 
 	case 0x78:
 	case 0x79: //Load MAC high and clear
@@ -515,16 +571,20 @@ void Emulator::exec1st() {
 		break;
 
 	case 0xC2: //Load DA imm
-		DA.value = insn;
+		DA.one.value = (insn & 0xFFF);
+		DA.two.value = ((insn >> 12) & 0xFFF);
 		break;
 	case 0xC3: //Load DIR imm
-		DIR.value = insn;
+		DIR.one.value = (insn & 0xFFF);
+		DIR.two.value = ((insn >> 12) & 0xFFF);
 		break;
 	case 0xC4: //Load CA imm
-		CA.value = insn;
+		CA.one.value = (insn & 0xFFF);
+		CA.two.value = ((insn >> 12) & 0xFFF);
 		break;
 	case 0xC5: //Load CIR imm
-		CIR.value = insn;
+		CIR.one.value = (insn & 0xFFF);
+		CIR.two.value = ((insn >> 12) & 0xFFF);
 		break;
 
 	case 0xCA: //Load ACC1 imm
@@ -664,22 +724,28 @@ void Emulator::exec2nd() {
 		break;
 
 	case 0x06: //Load dual from CMEM
+	{
 		//Load: (arg = 0-3) DA, DIR, CA, DIR
+		uint32_t value = CMEM[cmemAddressing()];
 		switch (opcode2_args) {
-		case 0:
-			DA.value = CMEM[cmemAddressing()];
+		case 0: //Load DA
+			DA.one.value = (value & 0xFFF);
+			DA.two.value = ((value >> 12) & 0xFFF);
 			break;
-		case 1:
-			DIR.value = CMEM[cmemAddressing()];
+		case 1: //Load DIR
+			DIR.one.value = (value & 0xFFF);
+			DIR.two.value = ((value >> 12) & 0xFFF);
 			break;
-		case 2:
-			CA.value = CMEM[cmemAddressing()];
+		case 2: //Load CA
+			CA.one.value = (value & 0xFFF);
+			CA.two.value = ((value >> 12) & 0xFFF);
 			break;
-		case 3:
-			CIR.value = CMEM[cmemAddressing()];
+		case 3: //Load CIR
+			CIR.one.value = (value & 0xFFF);
+			CIR.two.value = ((value >> 12) & 0xFFF);
 			break;
 		}
-		break;
+	} break;
 	case 0x08: //Dereference CMEM ptr to CMEM addressing register
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
 			if (opcode2_flag8) {
@@ -789,19 +855,19 @@ void Emulator::exec2nd() {
 		switch (opcode2_args) {
 		case 0:
 			CMEM[cmemAddressing()] = CR0.value;
-			printf("CR0 is %06X\n", CR0.value);
+			tms_printf("CR0 is %06X\n", CR0.value);
 			break;
 		case 1:
 			CMEM[cmemAddressing()] = CR1.value;
-			printf("CR1 is %06X\n", CR1.value);
+			tms_printf("CR1 is %06X\n", CR1.value);
 			break;
 		case 2:
 			CMEM[cmemAddressing()] = CR2.value;
-			printf("CR2 is %06X\n", CR2.value);
+			tms_printf("CR2 is %06X\n", CR2.value);
 			break;
 		case 3:
 			CMEM[cmemAddressing()] = CR3.value;
-			printf("CR3 is %06X\n", CR3.value);
+			tms_printf("CR3 is %06X\n", CR3.value);
 			break;
 		}
 		break;
@@ -815,8 +881,23 @@ void Emulator::exec2nd() {
 		break;
 
 	case 0x29: //MAC shifter mode
+	{
 		CR1.MOSM = opcode2_args;
-		break;
+		int8_t output_shift = 0;
+		switch (CR1.MOSM) {
+		case 0: output_shift = 0; break;
+		case 1: output_shift = 2; break;
+		case 2: output_shift = 4; break;
+		case 3: output_shift = -8; break;
+		default: assert(false);
+		}
+		MACC1.output_shift = output_shift;
+		MACC2.output_shift = output_shift;
+		MACC1_delayed2.output_shift = output_shift;
+		MACC2_delayed2.output_shift = output_shift;
+		MACC1_delayed1.output_shift = output_shift;
+		MACC2_delayed1.output_shift = output_shift;
+	} break;
 
 	case 0x2C:
 		if (opcode2_flag8) {
@@ -993,4 +1074,187 @@ void Emulator::execJmp() {
 		else
 			tms_printf("Jumping to %03X\n", PC.value);
 	}
+}
+
+void Emulator::execPostIncrements() {
+	const uint8_t addrMode = (insn >> 12) & 3;
+	const uint8_t nibble2 = (insn >> 8) & 0xF; //Often referred to as 'i' in my notes
+	const uint8_t nibble1 = (insn >> 4) & 0xF; //Often referred to as 'z' in my notes
+
+	//DA control
+	if (addrMode & 2) {
+		uint12_t* DAx = &DA.one;
+		if (nibble2 & 8) { //Use DA2
+			DAx = &DA.two;
+		}
+		if (nibble2 & 4) {
+			//Increment with incrementing register
+			uint12_t* DIRx = &DIR.one;
+			if (nibble2 & 2) {
+				//Use other incrementing register
+				DIRx = &DIR.two;
+			}
+			DAx->value += DIRx->value;
+		} else {
+			if (nibble2 & 2) {
+				//Increment
+				DAx->value++;
+			}
+		}
+	}
+
+	//CA control
+	if (addrMode == 1) {
+		uint12_t* CAx = &CA.one;
+		if (nibble2 & 8) { //Use CA2
+			CAx = &CA.two;
+		}
+		if (nibble2 & 4) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &CIR.one;
+			if (nibble2 & 2) {
+				//Use other incrementing register
+				CIRx = &CIR.two;
+			}
+			CAx->value += CIRx->value;
+		} else {
+			if (nibble2 & 2) {
+				//Increment
+				CAx->value++;
+			}
+		}
+	} else if (addrMode == 3) {
+		uint12_t* CAx = &CA.one;
+		if (nibble2 & 1) { //Use CA2
+			CAx = &CA.two;
+		}
+		if (nibble1 & 8) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &CIR.one;
+			if (nibble1 & 4) {
+				//Use other incrementing register
+				CIRx = &CIR.two;
+			}
+			CAx->value += CIRx->value;
+		} else {
+			if (nibble1 & 4) {
+				//Increment
+				CAx->value++;
+			}
+		}
+	}
+
+#if 0
+	switch (addrMode) {
+	case 0:
+
+		break;
+	case 1:
+	{
+		/*
+		00001i00
+		Set bit 3(8) of i for CA2 rather than CA1
+		Set bit 2(4) of i to increment with incrementing register
+		Set bit 1(2) of i for post-increment or to change incrementing register
+		*/
+		uint12_t* CAx = &CA.one;
+		if (nibble2 & 8) { //Use CA2
+			CAx = &CA.two;
+		}
+		if (nibble2 & 4) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &CIR.one;
+			if (nibble2 & 2) {
+				//Use other incrementing register
+				uint12_t* CIRx = &CIR.two;
+			}
+			CAx->value += CIRx->value;
+		} else {
+			if (nibble2 & 2) {
+				//Increment
+				CAx->value++;
+			}
+		}
+	} break;
+	case 2:
+	{
+		/*
+		00002i00
+		Set bit 3(8) of i for DA2 rather than DA1
+		Set bit 2(4) of i to increment with incrementing register
+		Set bit 1(2) of i for post-increment or to change incrementing register
+		*/
+		uint12_t* DAx = &DA.one;
+		if (nibble2 & 8) { //Use DA2
+			DAx = &DA.two;
+		}
+		if (nibble2 & 4) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &DIR.one;
+			if (nibble2 & 2) {
+				//Use other incrementing register
+				uint12_t* CIRx = &DIR.two;
+			}
+			DAx->value += CIRx->value;
+		} else {
+			if (nibble2 & 2) {
+				//Increment
+				DAx->value++;
+			}
+		}
+	} break;
+	case 3:
+	{
+		/*
+		00003iz0
+		Set bit 0(1) of i for CA2 rather than CA1
+		Set bit 2(4) of z for post-increment or to change incrementing register
+		Set bit 3(8) of z to increment with incrementing register
+		DA control:
+		Set bit 3(8) of i to switch from DA1 to DA2
+		Set bit 2(4) of i to increment with incrementing register
+		Set bit 1(2) of i to post-increment or to change incrementing register
+		*/
+		//DA control is the same as 2
+		uint12_t* DAx = &DA.one;
+		if (nibble2 & 8) { //Use DA2
+			DAx = &DA.two;
+		}
+		if (nibble2 & 4) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &DIR.one;
+			if (nibble2 & 2) {
+				//Use other incrementing register
+				uint12_t* CIRx = &DIR.two;
+			}
+			DAx->value += CIRx->value;
+		} else {
+			if (nibble2 & 2) {
+				//Increment
+				DAx->value++;
+			}
+		}
+
+		//CA control
+		uint12_t* CAx = &CA.one;
+		if (nibble1 & 1) { //Use CA2
+			CAx = &CA.two;
+		}
+		if (nibble1 & 8) {
+			//Increment with incrementing register
+			uint12_t* CIRx = &CIR.one;
+			if (nibble1 & 4) {
+				//Use other incrementing register
+				uint12_t* CIRx = &CIR.two;
+			}
+			CAx->value += CIRx->value;
+		} else {
+			if (nibble1 & 4) {
+				//Increment
+				CAx->value++;
+			}
+		}
+	} break;
+	}
+#endif
 }
