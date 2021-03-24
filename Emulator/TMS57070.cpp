@@ -7,19 +7,6 @@ void Emulator::reset() {
 	PC.value = 0; //Reset vector
 	SP = 0;
 	RPTC = 0;
-	
-
-	//testing only
-	CA.one.value = 5;
-	CA.two.value = 9;
-	DA.one.value = 7;
-	DA.two.value = 1;
-	DMEM[7] = 0x111111;
-	DMEM[1] = 0x888888;
-	DMEM[0x10] = 0xDAD;
-	MACC1.set(0xBADBEEF000000);
-	MACC2.set(0xBEAD000000);
-	ACC2.value = 0xCAFE;
 }
 
 void Emulator::step() {
