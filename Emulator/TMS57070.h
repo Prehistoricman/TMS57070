@@ -244,6 +244,12 @@ namespace TMS57070 {
         addr_reg_t CIR;
         addr_reg_t DIR;
 
+        uint12_t COFF; //Current CMEM offset
+        uint12_t CCIRC; //CMEM circular region end address
+
+        uint12_t DOFF; //Current DMEM offset
+        uint12_t DCIRC; //DMEM circular region end address
+
     private: //Non-register variables
         uint32_t insn; //Current instruction
         sample_out_callback_t* sample_out_cb = nullptr;

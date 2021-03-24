@@ -57,43 +57,49 @@ int24_t* Emulator::arith(ArithOperation operation) {
 	uint8_t src_code = opcode1 & 3;
 	int24_t lhs;
 	int24_t rhs;
-	switch (src_code) {
-	case 0: //DMEM op ACCx
+	if ((opcode1 == 0x3C) || (opcode1 == 0x3D) || (opcode1 == 0x3E)) {
+		//These instructions use CMEM and DMEM always
 		lhs.value = DMEM[dmemAddressing()];
-		if (opcode1_flag8) {
-			rhs.value = ACC2.value;
-		} else {
-			rhs.value = ACC1.value;
+		rhs.value = CMEM[cmemAddressing()];
+	} else { //Normal ALU instructions
+		switch (src_code) {
+		case 0: //DMEM op ACCx
+			lhs.value = DMEM[dmemAddressing()];
+			if (opcode1_flag8) {
+				rhs.value = ACC2.value;
+			} else {
+				rhs.value = ACC1.value;
+			}
+			break;
+		case 1: //DMEM op MACCx
+			lhs.value = DMEM[dmemAddressing()];
+			if (opcode1_flag8) {
+				rhs.value = MACC2.getUpper().value;
+			} else {
+				rhs.value = MACC1.getUpper().value;
+			}
+			break;
+		case 2: //CMEM op ACCx
+			lhs.value = CMEM[cmemAddressing()];
+			if (opcode1_flag8) {
+				rhs.value = ACC2.value;
+			} else {
+				rhs.value = ACC1.value;
+			}
+			break;
+		case 3: //CMEM op MACCx
+			lhs.value = CMEM[cmemAddressing()];
+			if (opcode1_flag8) {
+				rhs.value = MACC2.getUpper().value;
+			} else {
+				rhs.value = MACC1.getUpper().value;
+			}
+			break;
+		default:
+			assert(false); //Should not happen
+			lhs.value = 0;
+			rhs.value = 0;
 		}
-		break;
-	case 1: //DMEM op MACCx
-		lhs.value = DMEM[dmemAddressing()];
-		if (opcode1_flag8) {
-			rhs.value = MACC2.getUpper().value;
-		} else {
-			rhs.value = MACC1.getUpper().value;
-		}
-		break;
-	case 2: //CMEM op ACCx
-		lhs.value = CMEM[cmemAddressing()];
-		if (opcode1_flag8) {
-			rhs.value = ACC2.value;
-		} else {
-			rhs.value = ACC1.value;
-		}
-		break;
-	case 3: //CMEM op MACCx
-		lhs.value = CMEM[cmemAddressing()];
-		if (opcode1_flag8) {
-			rhs.value = MACC2.getUpper().value;
-		} else {
-			rhs.value = MACC1.getUpper().value;
-		}
-		break;
-	default:
-		assert(false); //Should not happen
-		lhs.value = 0;
-		rhs.value = 0;
 	}
 
 	int32_t result;
@@ -310,6 +316,21 @@ void Emulator::exec1st() {
 	{
 		int24_t* dst = arith(ArithOperation::Cmp);
 	} break;
+
+	case 0x3C: //ADD CMEM + DMEM
+		if (opcode1_flag8) {
+			arith(ArithOperation::Sub);
+		} else {
+			arith(ArithOperation::Add);
+		}
+		break;
+	case 0x3D: //AND bitwise CMEM AND DMEM
+		if (opcode1_flag8) {
+			arith(ArithOperation::Or);
+		} else {
+			arith(ArithOperation::And);
+		}
+		break;
 
 	case 0x39:
 		//TODO
@@ -587,6 +608,15 @@ void Emulator::exec1st() {
 		CIR.two.value = ((insn >> 12) & 0xFFF);
 		break;
 
+	case 0xC7: //Set DMEM circular registers
+		DOFF.value = insn;
+		DCIRC.value = insn >> 12;
+		break;
+	case 0xC8: //Set CMEM circular registers
+		COFF.value = insn;
+		CCIRC.value = insn >> 12;
+		break;
+
 	case 0xCA: //Load ACC1 imm
 		ACC1.value = insn;
 		processACCValue(ACC1.value); //Set flags
@@ -746,33 +776,33 @@ void Emulator::exec2nd() {
 			break;
 		}
 	} break;
-	case 0x08: //Dereference CMEM ptr to CMEM addressing register
+	case 0x08: //Dereference CMEM ptr to DMEM addressing register
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
 			if (opcode2_flag8) {
-				CIR.two.value = CMEM[cmemAddressing()];
+				DIR.two.value = CMEM[cmemAddressing()];
 			} else {
-				CIR.two.value = CMEM[cmemAddressing()];
+				DIR.one.value = CMEM[cmemAddressing()];
 			}
 		} else {
 			if (opcode2_flag8) {
-				CA.two.value = CMEM[cmemAddressing()];
+				DA.two.value = CMEM[cmemAddressing()];
 			} else {
-				CA.two.value = CMEM[cmemAddressing()];
+				DA.one.value = CMEM[cmemAddressing()];
 			}
 		}
 		break;
-	case 0x09: //Dereference CMEM ptr to DMEM addressing register //FIXME: combine with 0x08?
+	case 0x09: //Dereference CMEM ptr to CMEM addressing register //FIXME: combine with 0x08?
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
 			if (opcode2_flag8) {
-				DIR.two.value = CMEM[cmemAddressing()];
+				CIR.two.value = CMEM[cmemAddressing()];
 			} else {
-				DIR.two.value = CMEM[cmemAddressing()];
+				CIR.one.value = CMEM[cmemAddressing()];
 			}
 		} else {
 			if (opcode2_flag8) {
-				DA.two.value = CMEM[cmemAddressing()];
+				CA.two.value = CMEM[cmemAddressing()];
 			} else {
-				DA.two.value = CMEM[cmemAddressing()];
+				CA.one.value = CMEM[cmemAddressing()];
 			}
 		}
 		break;
@@ -880,6 +910,27 @@ void Emulator::exec2nd() {
 		}
 		break;
 
+	case 0x27: //Handle circular memory
+		if (!CR1.LCMEM) {
+			uint32_t insn_temp = insn;
+			insn = 0x00002000 + CCIRC.value; //ugly hack
+			uint32_t current_end = CMEM[cmemAddressing()];
+			COFF.value--;
+			insn = 0x00002000; //ugly hack
+			CMEM[cmemAddressing()] = current_end; //Set new start to old end
+		}
+		if (!CR1.LDMEM) {
+			uint32_t insn_temp = insn;
+			insn = 0x00002000 + DCIRC.value; //ugly hack
+			uint32_t current_end = DMEM[dmemAddressing()];
+			DOFF.value--;
+			insn = 0x00002000; //ugly hack
+			DMEM[dmemAddressing()] = current_end; //Set new start to old end
+
+			DA.two.value = 0;
+		}
+		break;
+
 	case 0x29: //MAC shifter mode
 	{
 		CR1.MOSM = opcode2_args;
@@ -962,6 +1013,10 @@ uint32_t Emulator::cmemAddressing() {
 	default:
 		assert(false); //Should not happen
 	}
+
+	if (!CR1.LCMEM) {
+		addr += COFF.value;
+	}
 	
 	if (CR1.EXT && CR1.EXTMEM) { //CMEM is 512 words
 		return addr & 0x1FF;
@@ -996,6 +1051,10 @@ uint32_t Emulator::dmemAddressing() {
 		break;
 	default:
 		assert(false); //Should not happen
+	}
+
+	if (!CR1.LDMEM) {
+		addr += DOFF.value;
 	}
 
 	if (CR1.EXT && !CR1.EXTMEM) { //DMEM is 512 words
