@@ -261,6 +261,7 @@ void Emulator::exec1st() {
 				dst = &ACC2;
 			}
 			dst->value = 0;
+			processACCValue(dst->value); //Set flags
 		}
 		break;
 
