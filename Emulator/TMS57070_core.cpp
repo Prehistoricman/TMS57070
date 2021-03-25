@@ -553,30 +553,14 @@ void Emulator::exec1st() {
 
 	case 0xC1: //Load register with immediate
 		switch ((insn >> 16) & 0xFF) {
-		case 0x00:
-			DA.one.value = insn;
-			break;
-		case 0x08:
-			DA.two.value = insn;
-			break;
-		case 0x10:
-			DIR.one.value = insn;
-			break;
-		case 0x18:
-			DIR.two.value = insn;
-			break;
-		case 0x20:
-			CA.one.value = insn;
-			break;
-		case 0x28:
-			CA.two.value = insn;
-			break;
-		case 0x30:
-			CIR.one.value = insn;
-			break;
-		case 0x38:
-			CIR.two.value = insn;
-			break;
+		case 0x00: DA.one.value = insn; break;
+		case 0x08: DA.two.value = insn; break;
+		case 0x10: DIR.one.value = insn; break;
+		case 0x18: DIR.two.value = insn; break;
+		case 0x20: CA.one.value = insn; break;
+		case 0x28: CA.two.value = insn; break;
+		case 0x30: CIR.one.value = insn; break;
+		case 0x38: CIR.two.value = insn; break;
 		case 0x40: //LIRAE
 			if (!CR1.ACCN) {
 				CA.one.value = insn;
@@ -823,6 +807,7 @@ void Emulator::exec2nd() {
 				DMEM[dmemAddressing()] = AR2L.value;
 			}
 		}
+		break;
 
 	case 0x18:
 		if (opcode2_flag8) { //right channel
