@@ -196,7 +196,8 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'RDE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Read from external memory at address from CMEM"}, #39
         {'name': 'WRE',    'feature': CF_USE1 | CF_USE2, 'cmt': "Write to external memory at address from CMEM and data from DMEM"}, #39
         {'name': 'ADDD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Add CMEM and DMEM, store result in ACC"}, #3C
-        {'name': 'ANDD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise AND CMEM and DMEM, store result in ACC"}, #3D
+        {'name': 'ANDD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise AND CMEM and DMEM, store result in ACC"}, #3D0
+        {'name': 'ORD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise OR CMEM and DMEM, store result in ACC"}, #3D8
         {'name': 'XORD',   'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise XOR CMEM and DMEM, store result in ACC"}, #3E
         {'name': 'MPY(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM with ACC"}, #40, 41
         {'name': 'MPY(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC"}, #44, 45
@@ -1389,7 +1390,10 @@ class TMS57070_processor(idaapi.processor_t):
         elif opcode1 == 0x3C:
             self.ana_arith_dual("ADDD")
         elif opcode1 == 0x3D:
-            self.ana_arith_dual("ANDD")
+            if self.b2 & 0x80 == 0:
+                self.ana_arith_dual("ANDD")
+            else:
+                self.ana_arith_dual("ORD")
         elif opcode1 == 0x3E:
             self.ana_arith_dual("XORD")
         elif opcode1 == 0x40 or opcode1 == 0x41:
