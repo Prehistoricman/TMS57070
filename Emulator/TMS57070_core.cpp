@@ -40,6 +40,9 @@ int24_t* Emulator::loadACC() {
 		assert(false); //Should not happen
 	}
 
+	//Calculate sign bit
+	result = int24_t{ result }.value;
+
 	//Apply flags
 	dst->value = processACCValue(result);
 
@@ -74,9 +77,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 		case 1: //DMEM op MACCx
 			lhs.value = DMEM[dmemAddressing()];
 			if (opcode1_flag8) {
-				rhs.value = MACC2.getUpper().value;
+				rhs.value = MACC2_delayed2.getUpper().value;
 			} else {
-				rhs.value = MACC1.getUpper().value;
+				rhs.value = MACC1_delayed2.getUpper().value;
 			}
 			break;
 		case 2: //CMEM op ACCx
@@ -90,9 +93,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 		case 3: //CMEM op MACCx
 			lhs.value = CMEM[cmemAddressing()];
 			if (opcode1_flag8) {
-				rhs.value = MACC2.getUpper().value;
+				rhs.value = MACC2_delayed2.getUpper().value;
 			} else {
-				rhs.value = MACC1.getUpper().value;
+				rhs.value = MACC1_delayed2.getUpper().value;
 			}
 			break;
 		default:
@@ -122,14 +125,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 	case ArithOperation::Cmp:
 		//Quit early to avoid writing to ACC
 		result = lhs.value - rhs.value;
-		if ((result < INT24_MIN) || (result > INT24_MAX)) {
-			CR1.AOV = 1;
-		}
-		if (result == 0) {
-			CR1.ACCZ = 1;
-		} else if (result < 0) {
-			CR1.ACCN = 1;
-		}
+		CR1.AOV = (result < INT24_MIN) || (result > INT24_MAX);
+		CR1.ACCZ = result == 0;
+		CR1.ACCN = result < 0;
 		return nullptr; //This value doesn't get saved to ACC
 		break;
 	default:
@@ -792,6 +790,29 @@ void Emulator::exec2nd() {
 		}
 		break;
 
+	case 0x0A: //Save addressing register to CMEM
+	case 0x0B: //Save addressing register to CMEM
+	{
+		uint12_t* reg = nullptr;
+		if (opcode2 == 0x0A) { //DMEM addressing regs
+			switch (opcode2_args) {
+			case 0: reg = &DA.one; break;
+			case 1: reg = &DIR.one; break;
+			case 2: reg = &DA.two; break;
+			case 3: reg = &DIR.two; break;
+			}
+		} else { //CMEM addressing regs
+			switch (opcode2_args) {
+			case 0: reg = &CA.one; break;
+			case 1: reg = &CIR.one; break;
+			case 2: reg = &CA.two; break;
+			case 3: reg = &CIR.two; break;
+			}
+		}
+		assert(reg != nullptr);
+		CMEM[cmemAddressing()] = reg->value;
+	} break;
+
 	case 0x0C: //Audio input
 	case 0x0D:
 		if (opcode2_flag8) { //right channel
@@ -938,7 +959,16 @@ void Emulator::exec2nd() {
 
 	case 0x2C:
 		if (opcode2_flag8) {
-			//unknown
+			//Clear overflow bits
+			if (opcode1_flag4) {
+				//MAC overflow bits
+				CR1.MOV = 0;
+				CR1.MOVL = 0;
+			} else {
+				//ACC overflow bits
+				CR1.AOV = 0;
+				CR1.AOVL = 0;
+			}
 		} else {
 			CR2.FREE = opcode2_flag4;
 		}
@@ -1087,17 +1117,17 @@ void Emulator::execJmp() {
 	case 0x30: //if ACC overflow
 		condition_pass = CR1.AOV;
 		break;
-	case 0x38: //if ??? - CR1 bit 1
-		condition_pass = CR1.ACCsomething;
+	case 0x38: //if ACC latched overflow - CR1 bit 1
+		condition_pass = CR1.AOVL;
 		break;
-	case 0x40: //if ??? - CR1 bit 4
-		condition_pass = CR1.MACOV2;
+	case 0x40: //if MACC overflow - CR1 bit 4
+		condition_pass = CR1.MOV;
 		break;
-	case 0x48: //if MAC overflow - CR1 bit 5
-		condition_pass = CR1.MACOV;
+	case 0x48: //if MAC latched overflow - CR1 bit 5
+		condition_pass = CR1.MOVL;
 		break;
-	case 0x50: //if ??? - CR1 bit 6
-		condition_pass = CR1.MACOV4;
+	case 0x50: //if MAC range overflow - CR1 bit 6
+		condition_pass = CR1.MOVR;
 		break;
 	case 0x58: //if BIO low TODO
 		
