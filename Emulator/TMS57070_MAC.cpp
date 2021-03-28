@@ -14,41 +14,40 @@ MAC::MAC(Emulator* dsp) {
 }
 
 int24_t MAC::getUpper() {
-	int32_t upper = (int32_t)(value.raw >> 24);
+	int64_t raw_shifted = value.raw;
+	if (output_shift >= 0) {
+		raw_shifted = raw_shifted << output_shift;
+	} else {
+		raw_shifted = raw_shifted >> (-output_shift);
+	}
+
+	int32_t upper = (int32_t)(raw_shifted >> 24);
 	if (upper > INT24_MAX) {
 		upper = INT24_MAX;
 	} else if (upper < INT24_MIN) {
 		upper = INT24_MIN;
 	}
-	if (output_shift >= 0) {
-		upper = upper << output_shift;
-	} else {
-		upper = upper >> (-output_shift);
-	}
-
-	//TODO: saturate after shift
 
 	int24_t retval{ upper };
 	return retval;
 }
 
 uint24_t MAC::getLower() {
-	uint32_t lower = value.raw & UINT24_MAX;
+	int64_t raw_shifted = value.raw;
+	if (output_shift >= 0) {
+		raw_shifted = raw_shifted << output_shift;
+	} else {
+		raw_shifted = raw_shifted >> (-output_shift);
+	}
+
+	uint32_t lower = raw_shifted & UINT24_MAX;
 	
-	int32_t upper = (int32_t)(value.raw >> 24); //lower will saturate with the upper
+	int32_t upper = (int32_t)(raw_shifted >> 24); //lower will saturate with the upper
 	if (upper > INT24_MAX) {
 		lower = UINT24_MAX;
 	} else if (upper < INT24_MIN) {
 		lower = 0;
 	}
-
-	if (output_shift >= 0) {
-		lower = lower << output_shift;
-	} else {
-		lower = lower >> (-output_shift);
-	}
-
-	//TODO: saturate after shift
 
 	uint24_t retval{ lower };
 	return retval;
