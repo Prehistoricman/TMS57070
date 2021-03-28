@@ -54,12 +54,12 @@ namespace TMS57070 {
         struct {
             //byte 0
             uint8_t AOV : 1;
-            uint8_t ACCsomething : 1;
+            uint8_t AOVL : 1;
             uint8_t ACCZ : 1;
             uint8_t ACCN : 1;
-            uint8_t MACOV2 : 1;
-            uint8_t MACOV : 1;
-            uint8_t MACOV4 : 1;
+            uint8_t MOV : 1;
+            uint8_t MOVL : 1;
+            uint8_t MOVR : 1;
             uint8_t unk7 : 1;
             //byte 1
             uint8_t AOVM : 1;
@@ -206,12 +206,12 @@ namespace TMS57070 {
         cr1_t CR1;
         cr2_t CR2;
         cr3_t CR3;
+        uint9_t PC;
 
     private: //Registers
         uint8_t SP;
 
         //9-bit
-        uint9_t PC;
         uint9_t stack[4];
         uint9_t rep_start_PC;
         uint9_t rep_end_PC;
