@@ -7,6 +7,11 @@ void Emulator::reset() {
 	PC.value = 0; //Reset vector
 	SP = 0;
 	RPTC = 0;
+
+	CR0.value = 0xAA9BAD;
+	CR1.value = 0x810800;
+	CR2.value = 0x30FF00;
+	CR3.value = 0xE00000;
 }
 
 void Emulator::step() {
