@@ -60,6 +60,15 @@ void Emulator::step() {
 	MACC1_delayed1.set(MACC1);
 	MACC2_delayed1.set(MACC2);
 
+	//Handle background XMEM reading
+	if (XMEM_read_cycles != 0) {
+		XMEM_read_cycles--;
+		if (XMEM_read_cycles == 0) {
+			//Read is done
+			XRD.value = XMEM[XMEM_read_addr].value;
+		}
+	}
+
 	//Check if there is an interrupt to jump to
 	//Are we FREE?
 	if (CR2.FREE) {
@@ -217,7 +226,7 @@ std::string Emulator::reportState() {
 	report.append("\"CMEM\":[");
 	for (int i = 0; i < 255; i++) {
 		report.append("\"");
-		snprintf(temp, TEMP_LEN, "%06lX", CMEM[i]);
+		snprintf(temp, TEMP_LEN, "%06lX", CMEM[i].value);
 		int temp_pos = 0;
 		if (strlen(temp) > 6) {
 			temp_pos = strlen(temp) - 6;
@@ -234,7 +243,7 @@ std::string Emulator::reportState() {
 	report.append("\"DMEM\":[");
 	for (int i = 0; i < 255; i++) {
 		report.append("\"");
-		snprintf(temp, TEMP_LEN, "%06lX", DMEM[i]);
+		snprintf(temp, TEMP_LEN, "%06lX", DMEM[i].value);
 		int temp_pos = 0;
 		if (strlen(temp) > 6) {
 			temp_pos = strlen(temp) - 6;

@@ -192,15 +192,16 @@ namespace TMS57070 {
         interrupt_vector_t int_vector_decode(uint8_t);
         uint32_t cmemAddressing();
         uint32_t dmemAddressing();
+        uint32_t xmemAddressing(uint32_t addr);
         int24_t* loadACC();
         int24_t* arith(ArithOperation operation);
         int32_t processACCValue(int32_t acc);
 
     public:
         uint32_t PMEM[512];
-        uint32_t CMEM[512];
-        uint32_t DMEM[512];
-        uint32_t XMEM[512]; //TODO: How big will this need to be?
+        int24_t CMEM[512];
+        int24_t DMEM[512];
+        int24_t XMEM[0xFFFFFF]; //This is the largest possible XMEM configuration
 
         cr0_t CR0;
         cr1_t CR1;
@@ -250,6 +251,8 @@ namespace TMS57070 {
         uint12_t DOFF; //Current DMEM offset
         uint12_t DCIRC; //DMEM circular region end address
 
+        uint16_t XOFF; //Current XMEM offset
+
     private: //Non-register variables
         uint32_t insn; //Current instruction
         sample_out_callback_t* sample_out_cb = nullptr;
@@ -268,6 +271,9 @@ namespace TMS57070 {
         //MACC values delayed by 2 cycles
         MAC MACC1_delayed2{ this };
         MAC MACC2_delayed2{ this };
+
+        uint32_t XMEM_read_addr;
+        uint32_t XMEM_read_cycles;
     };
 
 }
