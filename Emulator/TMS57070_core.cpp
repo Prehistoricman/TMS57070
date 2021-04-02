@@ -248,7 +248,9 @@ void Emulator::exec1st() {
 
 	case 0x1D: //ZACC Zero accumulator (and something else)
 		if (opcode1_flag8) {
+#if UNKNOWN_STRICT
 			assert(false); //idk
+#endif
 		} else {
 			//ZACC zero accumulator
 			int24_t* dst = &ACC1;
@@ -515,7 +517,9 @@ void Emulator::exec1st() {
 
 	case 0x73: //Zero MACC (and something else)
 		if (opcode1_flag8) {
+#if UNKNOWN_STRICT
 			assert(false); //idk
+#endif
 		} else {
 			//Zero MACC
 			MAC* MACx = &MACC1;
@@ -588,7 +592,9 @@ void Emulator::exec1st() {
 			}
 			break;
 		default:
+#if UNKNOWN_STRICT
 			assert(false); //unknown
+#endif
 		}
 		break;
 
@@ -692,6 +698,9 @@ void Emulator::exec1st() {
 		break;
 
 	default:
+#if UNKNOWN_STRICT
+		assert(false);
+#endif
 		tms_printf("Unhandled 1st instruction: %08X\n", insn);
 		break;
 	}
@@ -909,12 +918,16 @@ void Emulator::exec2nd() {
 	case 0x20:
 		if (opcode2_flag8) { //Save XRD to DMEM
 			if (opcode2_flag4) {
+#if UNKNOWN_STRICT
 				assert(false); //Broken/idk
+#endif
 			} else {
 				DMEM[dmemAddressing()].value = XRD.value;
 			}
 		} else {
+#if UNKNOWN_STRICT
 			assert(false); //Broken/idk
+#endif
 		}
 		break;
 
@@ -1020,6 +1033,9 @@ void Emulator::exec2nd() {
 		break;
 
 	default:
+#if UNKNOWN_STRICT
+		assert(false);
+#endif
 		tms_printf("Unhandled 2nd instruction: %08X\n", insn);
 		break;
 	}
@@ -1169,7 +1185,9 @@ void Emulator::execJmp() {
 		
 		break;
 	default:
+#if UNKNOWN_STRICT
 		assert(false); //Unhandled jump type
+#endif
 	}
 	if (condition_pass) {
 		if (is_call) {

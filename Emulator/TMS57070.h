@@ -11,6 +11,7 @@
 #else
 #define tms_printf(...)
 #endif
+#define UNKNOWN_STRICT 1 //Treat unknown instructions and behaviour as a fatal error
 
 constexpr uint32_t UINT24_MAX = 0xFFFFFF;
 constexpr int32_t INT24_MAX = 0x7FFFFF;
