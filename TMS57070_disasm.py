@@ -113,7 +113,10 @@ class TMS57070_processor(idaapi.processor_t):
         #Control register fields
         "CR1.MOSM",#MACC output shifter mode
         "CR1.MOVM",#MACC overflow clamp mode
+        "CR1.MASM",#MACC accumulation shifter mode
         "CR1.AOVM",#ACC overflow clamp mode
+        "CR1.AOV",#ACC overflow flag(s)
+        "CR1.MOV",#MACC overflow flag(s)
         "CR2.FREE",#Interrupt busy flag
         "HIR", #Host interface register
         "CIR", #Incrementing registers
@@ -211,12 +214,22 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'SHMU',   'feature': CF_USE1 | CF_USE2, 'cmt': "Load unsigned DMEM into MACC and divide by 2"}, #4B, 4F
         {'name': 'MAC(1)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC, accumulate into MACC"}, #50, 51
         {'name': 'MAC(2)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC, accumulate into MACC"}, #52, 53
-        {'name': 'MAC(3)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate into MACC"}, #5C, 5D
-        {'name': 'MAC(4)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC, accumulate into MACC"}, #5E, 5F
-        {'name': 'MAC(5)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MACC"}, #6C
-        {'name': 'MAC(6)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MACC"}, #6D
-        {'name': 'MAC(7)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned DMEM, accumulate into MACC"}, #6E
-        {'name': 'MAC(8)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by unsigned DMEM, accumulate into MACC"}, #6F
+        {'name': 'MAC(3)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate into MACC"}, #54, 55
+        {'name': 'MAC(4)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by unsigned ACC, accumulate into MACC"}, #56, 57
+        {'name': 'MAC(5)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned ACC, accumulate into MACC"}, #58, 59
+        {'name': 'MAC(6)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by ACC, accumulate into MACC"}, #5A, 5B
+        {'name': 'MAC(7)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by unsigned ACC, accumulate into MACC"}, #5C, 5D
+        {'name': 'MAC(8)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned DMEM by unsigned ACC, accumulate into MACC"}, #5E, 5F
+        {'name': 'MAC(9)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate into MACC"}, #6C
+        {'name': 'MAC(A)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate into MACC"}, #6D
+        {'name': 'MAC(B)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by unsigned DMEM, accumulate into MACC"}, #6E
+        {'name': 'MAC(C)', 'feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by unsigned DMEM, accumulate into MACC"}, #6F
+        {'name': 'MACl(1)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by ACC, accumulate lower into MACC"}, #60, 61
+        {'name': 'MACl(2)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by ACC, accumulate lower into MACC"}, #62, 63
+        {'name': 'MACl(3)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by ACC, accumulate lower into MACC"}, #64, 65
+        {'name': 'MACl(4)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply DMEM by unsigned ACC, accumulate lower into MACC"}, #66, 67
+        {'name': 'MACl(5)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply CMEM by DMEM, accumulate lower into MACC"}, #70
+        {'name': 'MACl(6)','feature': CF_USE1 | CF_USE2, 'cmt': "Multiply unsigned CMEM by DMEM, accumulate lower into MACC"}, #71
         {'name': 'SHMAC',  'feature': CF_USE1 | CF_SHFT, 'cmt': "Shift MACC once left or right"}, #72
         {'name': 'ZMACC',  'feature': CF_USE1 | CF_USE2, 'cmt': "Zero both MACCs"}, #74
         {'name': 'LMH',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load high MACC with MEM or ACC"}, #78, 79
@@ -990,7 +1003,15 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[0].reg = self.get_register("UU")
         elif self.b1 == 0x50 or self.b1 == 0x51:
             self.insn[0].reg = self.get_register("SS")
+        elif self.b1 == 0x54 or self.b1 == 0x55:
+            self.insn[0].reg = self.get_register("US")
+        elif self.b1 == 0x58 or self.b1 == 0x59:
+            self.insn[0].reg = self.get_register("SU")
         elif self.b1 == 0x5C or self.b1 == 0x5D:
+            self.insn[0].reg = self.get_register("UU")
+        elif self.b1 >= 0x60 and self.b1 <= 0x63:
+            self.insn[0].reg = self.get_register("SS")
+        elif self.b1 >= 0x64 and self.b1 <= 0x67:
             self.insn[0].reg = self.get_register("US")
         
         self.ana_cmem_addressing(1)
@@ -1003,8 +1024,16 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn[0].type = o_reg
         if self.b1 == 0x52 or self.b1 == 0x53:
             self.insn[0].reg = self.get_register("SS")
-        elif self.b1 == 0x5E or self.b1 == 0x5F:
+        elif self.b1 == 0x56 or self.b1 == 0x57:
+            self.insn[0].reg = self.get_register("SU")
+        elif self.b1 == 0x5A or self.b1 == 0x5B:
             self.insn[0].reg = self.get_register("US")
+        elif self.b1 == 0x5E or self.b1 == 0x5F:
+            self.insn[0].reg = self.get_register("UU")
+        elif self.b1 >= 0x60 and self.b1 <= 0x63:
+            self.insn[0].reg = self.get_register("SS")
+        elif self.b1 >= 0x64 and self.b1 <= 0x67:
+            self.insn[0].reg = self.get_register("SU")
         
         self.ana_dmem_addressing(1)
         self.ana_mult_single()
@@ -1030,6 +1059,10 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[0].reg = self.get_register("SU")
         elif self.b1 == 0x6F:
             self.insn[0].reg = self.get_register("UU")
+        elif self.b1 == 0x70:
+            self.insn[0].reg = self.get_register("SS")
+        elif self.b1 == 0x71:
+            self.insn[0].reg = self.get_register("US")
         
         self.ana_cmem_addressing(1)
         self.ana_dmem_addressing(2)
@@ -1214,31 +1247,46 @@ class TMS57070_processor(idaapi.processor_t):
                 self.insn[5].reg = self.get_register(mem + "A1")
         
     def ana2_macshift(self):
-        self.insn[4].type = o_reg
-        self.insn[4].reg = self.get_register("CR1.MOSM")
-        
-        self.insn[5].type = o_imm
-        self.insn[5].specflag1 = 1 #Output sign for -8
+        self.insn[4].type = o_imm
+        self.insn[4].specflag1 = 1 #Output sign for -8
         
         modes = [0, 2, 4, -8]
         modeselect = self.b3 >> 6
         if modeselect <= 3 and modeselect >= 0:
-            self.insn[5].value = modes[modeselect]
+            self.insn[4].value = modes[modeselect]
         else:
-            self.insn[5].value = 0
+            self.insn[4].value = 0
             logging.error("ana2_macshift modeselect out of array bounds")
+        
+        self.insn[5].type = o_reg
+        self.insn[5].reg = self.get_register("CR1.MOSM")
+        
+    def ana2_masm(self):
+        self.insn[4].type = o_imm
+        self.insn[4].specflag1 = 1 #Output sign for -8
+        
+        modes = [0, 2, 4, -24]
+        modeselect = self.b3 >> 6
+        if modeselect <= 3 and modeselect >= 0:
+            self.insn[4].value = modes[modeselect]
+        else:
+            self.insn[4].value = 0
+            logging.error("ana2_masm modeselect out of array bounds")
+        
+        self.insn[5].type = o_reg
+        self.insn[5].reg = self.get_register("CR1.MASM")
         
     def ana2_OVclamp(self):
         arg = self.b3 >> 6
         
-        self.insn[4].type = o_reg
+        self.insn[4].type = o_imm
+        self.insn[4].value = arg & 1 #1 = enabled
+        
+        self.insn[5].type = o_reg
         if arg <= 1: #Accumulator
-            self.insn[4].reg = self.get_register("CR1.AOVM")
+            self.insn[5].reg = self.get_register("CR1.AOVM")
         else: #MACC
-            self.insn[4].reg = self.get_register("CR1.MOVM")
-            
-        self.insn[5].type = o_imm
-        self.insn[5].value = arg & 1 #1 = enabled
+            self.insn[5].reg = self.get_register("CR1.MOVM")
     
     def ana2_CR(self):
         CR_pos = 4
@@ -1266,34 +1314,39 @@ class TMS57070_processor(idaapi.processor_t):
     def ana2_2C(self):
         arg = self.b3 >> 6
         
-        if arg >= 2:
-            #002C8xxx - 002CFxxx
-            #Unknown
-            self.insn[4].type = o_reg
-            self.insn[5].type = o_reg
-            self.insn[4].reg = self.get_register("unkn")
-            self.insn[5].reg = self.get_register("unkn")
-        else:
+        if arg == 0 or arg == 1:
             self.insn[4].type = o_imm
             self.insn[4].value = arg & 1
             
             self.insn[5].type = o_reg
             self.insn[5].reg = self.get_register("CR2.FREE")
+        elif arg == 2:
+            self.insn[4].type = o_imm
+            self.insn[4].value = 0
+            
+            self.insn[5].type = o_reg
+            self.insn[5].reg = self.get_register("CR1.AOV")
+        elif arg == 3:
+            self.insn[4].type = o_imm
+            self.insn[4].value = 0
+            
+            self.insn[5].type = o_reg
+            self.insn[5].reg = self.get_register("CR1.MOV")
     
     def ana2_circular_mode(self):
+        self.insn[4].type = o_imm
+        self.insn[4].value = value
+        
         arg = self.b3 >> 6
         
         value = arg & 1
         memory = arg & 2
         
-        self.insn[4].type = o_reg
+        self.insn[5].type = o_reg
         if memory == 0:
-            self.insn[4].reg = self.get_register("CR1.LDMEM")
+            self.insn[5].reg = self.get_register("CR1.LDMEM")
         else:
-            self.insn[4].reg = self.get_register("CR1.LCMEM")
-        
-        self.insn[5].type = o_imm
-        self.insn[5].value = value
+            self.insn[5].reg = self.get_register("CR1.LCMEM")
     
     def ana2(self):
         if self.opcode2 == 0x01:
@@ -1320,6 +1373,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_CR()
         elif self.opcode2 == 0x26:
             self.ana2_hir()
+        elif self.opcode2 == 0x28:
+            self.ana2_masm()
         elif self.opcode2 == 0x29:
             self.ana2_macshift()
         elif self.opcode2 == 0x2C:
@@ -1420,18 +1475,38 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana_mult_cmem("MAC(1)")
         elif opcode1 == 0x52 or opcode1 == 0x53:
             self.ana_mult_dmem("MAC(2)")
-        elif opcode1 == 0x5C or opcode1 == 0x5D:
+        elif opcode1 == 0x54 or opcode1 == 0x55:
             self.ana_mult_cmem("MAC(3)")
-        elif opcode1 == 0x5E or opcode1 == 0x5F:
+        elif opcode1 == 0x56 or opcode1 == 0x57:
             self.ana_mult_dmem("MAC(4)")
+        elif opcode1 == 0x58 or opcode1 == 0x59:
+            self.ana_mult_cmem("MAC(5)")
+        elif opcode1 == 0x5A or opcode1 == 0x5B:
+            self.ana_mult_dmem("MAC(6)")
+        elif opcode1 == 0x5C or opcode1 == 0x5D:
+            self.ana_mult_cmem("MAC(7)")
+        elif opcode1 == 0x5E or opcode1 == 0x5F:
+            self.ana_mult_dmem("MAC(8)")
+        elif opcode1 == 0x60 or opcode1 == 0x61:
+            self.ana_mult_cmem("MACl(1)")
+        elif opcode1 == 0x62 or opcode1 == 0x63:
+            self.ana_mult_dmem("MACl(2)")
+        elif opcode1 == 0x64 or opcode1 == 0x65:
+            self.ana_mult_cmem("MACl(3)")
+        elif opcode1 == 0x66 or opcode1 == 0x67:
+            self.ana_mult_dmem("MACl(4)")
         elif opcode1 == 0x6C:
-            self.ana_mult_dual("MAC(5)")
+            self.ana_mult_dual("MAC(9)")
         elif opcode1 == 0x6D:
-            self.ana_mult_dual("MAC(6)")
+            self.ana_mult_dual("MAC(A)")
         elif opcode1 == 0x6E:
-            self.ana_mult_dual("MAC(7)")
+            self.ana_mult_dual("MAC(B)")
         elif opcode1 == 0x6F:
-            self.ana_mult_dual("MAC(8)")
+            self.ana_mult_dual("MAC(C)")
+        elif opcode1 == 0x70:
+            self.ana_mult_dual("MACl(5)")
+        elif opcode1 == 0x71:
+            self.ana_mult_dual("MACl(6)")
         elif opcode1 == 0x72:
             self.ana_shmac()
         elif opcode1 == 0x73 and self.b2 < 0x80:
