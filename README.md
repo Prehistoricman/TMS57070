@@ -28,7 +28,6 @@ See the [wiki tab](https://github.com/Prehistoricman/TMS57070/wiki)
 * Currently missing:
   * Full XMEM functionality
   * Class 2 arithmetic/multiply instructions
-  * Some class 1 multiplication instructions
   * Some flag functionality
   * MACC accuracy with large numbers
   * Good command line interface
