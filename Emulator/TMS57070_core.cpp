@@ -318,6 +318,24 @@ void Emulator::exec1st() {
 		int24_t* dst = arith(ArithOperation::Cmp);
 	} break;
 
+	case 0x38: //Weird
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag8) MACx = &MACC2;
+
+		int24_t* ACCx = &ACC1;
+		if (opcode1_flag4) ACCx = &ACC2;
+
+		if ((MACx->getUpper().value >= 0x400000) || (MACx->getUpper().value < -0x400000)) {
+			//do nothing
+		} else {
+			//Left-shift MACx and decrement ACCx
+			MACx->shift(1);
+			ACCx->value--;
+			//TODO: apply flags
+		}
+	} break;
+
 	case 0x39:
 		//TODO: 16-bit truncation for the 16-bit mode
 		if (opcode1_flag4) { //WRE
@@ -427,6 +445,28 @@ void Emulator::exec1st() {
 		}
 
 		MACx->multiply(*cmem_word, *dmem_word, signs, negate);
+	} break;
+
+	case 0x43: //Multiply DMEM by 0.5
+	case 0x47: //same?
+	case 0x4B: //unsigned DMEM
+	case 0x4F: //same?
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* dmem_word = &DMEM[dmemAddressing()];
+
+		MACSigns signs;
+		if ((opcode1 & 8) == 0) {
+			signs = MACSigns::SS;
+		} else {
+			signs = MACSigns::UU;
+		}
+
+		MACx->multiply(int24_t{ 0x400000 }, *dmem_word, signs, negate);
 	} break;
 
 	case 0x50: //MAC CMEM by ACCx
