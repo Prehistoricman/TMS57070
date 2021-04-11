@@ -172,6 +172,9 @@ int32_t Emulator::processACCValue(int32_t acc) {
 void Emulator::exec1st() {
 	switch (opcode1) {
 	case 0x00: //NOP
+	case 0x01:
+	case 0x02:
+	case 0x03:
 		break;
 
 	case 0x4: //Load accumulator unsigned
@@ -340,6 +343,11 @@ void Emulator::exec1st() {
 		}
 		break;
 
+
+	case 0x3A: //NOP
+	case 0x3B:
+		break;
+
 	case 0x3C: //ADD CMEM + DMEM
 		if (opcode1_flag8) {
 			arith(ArithOperation::Sub);
@@ -353,6 +361,18 @@ void Emulator::exec1st() {
 		} else {
 			arith(ArithOperation::And);
 		}
+		break;
+	case 0x3E: //XOR bitwise CMEM AND DMEM
+		if (opcode1_flag8) {
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
+		} else {
+			arith(ArithOperation::Xor);
+		}
+		break;
+
+	case 0x3F: //NOP
 		break;
 
 	case 0x40: //Multiply CMEM by ACCx
@@ -517,7 +537,7 @@ void Emulator::exec1st() {
 		if ((opcode1 & 1) == 1) ACCx = &ACC2;
 
 		int24_t* word;
-		if (opcode1 <= 0x61) {
+		if ((opcode1 & 2) == 0) {
 			word = &CMEM[cmemAddressing()];
 		} else {
 			word = &DMEM[dmemAddressing()];
@@ -530,6 +550,43 @@ void Emulator::exec1st() {
 
 		MACx->mac(*ACCx, *word, MACSigns::SS, negate);
 	} break;
+
+	case 0x64: //Multiply unsigned CMEM by ACC (and accumulate shifted MAC)
+	case 0x65: //ACC2
+	case 0x66: //Multiply DMEM by unsigned ACC
+	case 0x67: //ACC2
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		int24_t* word;
+		MACSigns signs;
+		if ((opcode1 & 2) == 0) {
+			word = &CMEM[cmemAddressing()];
+			signs = MACSigns::SU;
+		} else {
+			word = &DMEM[dmemAddressing()];
+			signs = MACSigns::US;
+		}
+
+		//Shift MAC right by 24
+		if (CR1.MASM == 0) {
+			MACx->shift(-24);
+		}
+
+		MACx->mac(*ACCx, *word, signs, negate);
+	} break;
+
+	case 0x68: //NOP
+	case 0x69:
+	case 0x6A:
+	case 0x6B:
+		break;
 
 	case 0x6C: //MAC CMEM by DMEM
 	case 0x6D: //unsigned CMEM
@@ -605,6 +662,11 @@ void Emulator::exec1st() {
 		}
 		break;
 
+	case 0x75: //NOP
+	case 0x76:
+	case 0x77:
+		break;
+
 	case 0x78:
 	case 0x79: //Load MAC high and clear
 		if (opcode1_flag4) {
@@ -646,6 +708,10 @@ void Emulator::exec1st() {
 			}
 		}
 	} break;
+
+	case 0x7E: //NOP
+	case 0x7F:
+		break;
 
 	case 0xC1: //Load register with immediate
 		switch ((insn >> 16) & 0xFF) {
