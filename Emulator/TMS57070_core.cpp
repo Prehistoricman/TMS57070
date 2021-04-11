@@ -412,7 +412,7 @@ void Emulator::exec1st() {
 	case 0x50: //MAC CMEM by ACCx
 	case 0x51: //ACC2
 	case 0x52: //MAC DMEM by ACCx
-	case 0x53:
+	case 0x53: //ACC2
 	{
 		MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
@@ -423,12 +423,84 @@ void Emulator::exec1st() {
 		if ((opcode1 & 1) == 1) ACCx = &ACC2;
 
 		int24_t* word;
-		if (opcode1 <= 0x51) {
+		if ((opcode1 & 2) == 0) {
 			word = &CMEM[cmemAddressing()];
 		} else {
 			word = &DMEM[dmemAddressing()];
 		}
 		MACx->mac(*ACCx, *word, MACSigns::SS, negate);
+	} break;
+
+	case 0x54: //MAC unsigned CMEM by ACCx
+	case 0x55: //ACC2
+	case 0x56: //MAC DMEM by unsigned ACCx
+	case 0x57: //ACC2
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		int24_t* word;
+		MACSigns signs;
+		if ((opcode1 & 2) == 0) {
+			word = &CMEM[cmemAddressing()];
+			signs = MACSigns::SU;
+		} else {
+			word = &DMEM[dmemAddressing()];
+			signs = MACSigns::US;
+		}
+		MACx->mac(*ACCx, *word, signs, negate);
+	} break;
+
+	case 0x58: //MAC CMEM by unsigned ACCx
+	case 0x59: //ACC2
+	case 0x5A: //MAC unsigned DMEM by ACCx
+	case 0x5B: //ACC2
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		int24_t* word;
+		MACSigns signs;
+		if ((opcode1 & 2) == 0) {
+			word = &CMEM[cmemAddressing()];
+			signs = MACSigns::US;
+		} else {
+			word = &DMEM[dmemAddressing()];
+			signs = MACSigns::SU;
+		}
+		MACx->mac(*ACCx, *word, signs, negate);
+	} break;
+
+	case 0x5C: //MAC unsigned CMEM by unsigned ACCx
+	case 0x5D: //ACC2
+	case 0x5E: //MAC unsigned DMEM by unsigned ACCx
+	case 0x5F: //ACC2
+	{
+		MAC* MACx = &MACC1;
+		if (opcode1_flag4) MACx = &MACC2;
+
+		bool negate = opcode1_flag8;
+
+		int24_t* ACCx = &ACC1;
+		if ((opcode1 & 1) == 1) ACCx = &ACC2;
+
+		int24_t* word;
+		if ((opcode1 & 2) == 0) {
+			word = &CMEM[cmemAddressing()];
+		} else {
+			word = &DMEM[dmemAddressing()];
+		}
+		MACx->mac(*ACCx, *word, MACSigns::UU, negate);
 	} break;
 
 	case 0x60: //Multiply CMEM by ACC (and accumulate shifted MAC)

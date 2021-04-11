@@ -21,14 +21,14 @@ int24_t MAC::getUpper() {
 		raw_shifted = raw_shifted >> (-output_shift);
 	}
 
-	int32_t upper = (int32_t)(raw_shifted >> 24);
+	int64_t upper = raw_shifted >> 24;
 	if (upper > INT24_MAX) {
 		upper = INT24_MAX;
 	} else if (upper < INT24_MIN) {
 		upper = INT24_MIN;
 	}
 
-	int24_t retval{ upper };
+	int24_t retval{ (int32_t)upper };
 	return retval;
 }
 
@@ -42,7 +42,7 @@ uint24_t MAC::getLower() {
 
 	uint32_t lower = raw_shifted & UINT24_MAX;
 	
-	int32_t upper = (int32_t)(raw_shifted >> 24); //lower will saturate with the upper
+	int64_t upper = raw_shifted >> 24; //lower will saturate with the upper
 	if (upper > INT24_MAX) {
 		lower = UINT24_MAX;
 	} else if (upper < INT24_MIN) {
