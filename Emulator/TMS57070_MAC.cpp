@@ -172,23 +172,47 @@ void MAC::multiply(MAC mac, MACSigns signs, bool negate) {
 
 void MAC::mac(int24_t rhs, MACSigns signs, bool negate) {
 	int64_t current = value.raw;
+	//Apply accumulation shifter
+	switch (dsp->CR1.MASM) {
+	case 1: current = current << 2;  break;
+	case 2: current = current << 4;  break;
+	case 3: current = current >> 24; break;
+	}
 	//Now use the normal multiply function
 	multiply(rhs, signs, negate);
 	value.raw += current;
+
+	tms_printf("MAC accumulated with raw: %llX result: %llX\n", current, value.raw);
 	//TODO: calculate flags after accumulation
 }
 void MAC::mac(int24_t lhs, int24_t rhs, MACSigns signs, bool negate) {
 	int64_t current = value.raw;
+	//Apply accumulation shifter
+	switch (dsp->CR1.MASM) {
+	case 1: current = current << 2;  break;
+	case 2: current = current << 4;	 break;
+	case 3: current = current >> 24; break;
+	}
 	//Now use the normal multiply function
 	multiply(lhs, rhs, signs, negate);
 	value.raw += current;
+
+	tms_printf("MAC accumulated with raw: %llX result: %llX\n", current, value.raw);
 	//TODO: calculate flags after accumulation
 }
 void MAC::mac(MAC mac, MACSigns signs, bool negate) {
 	int64_t current = value.raw;
+	//Apply accumulation shifter
+	switch (dsp->CR1.MASM) {
+	case 1: current = current << 2;  break;
+	case 2: current = current << 4;	 break;
+	case 3: current = current >> 24; break;
+	}
 	//Now use the normal multiply function
 	multiply(mac, signs, negate);
 	value.raw += current;
+	
+	tms_printf("MAC accumulated with raw: %llX result: %llX\n", current, value.raw);
 	//TODO: calculate flags after accumulation
 }
 

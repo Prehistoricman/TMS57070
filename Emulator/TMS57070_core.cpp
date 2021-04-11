@@ -248,9 +248,9 @@ void Emulator::exec1st() {
 
 	case 0x1D: //ZACC Zero accumulator (and something else)
 		if (opcode1_flag8) {
-#if UNKNOWN_STRICT
-			assert(false); //idk
-#endif
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
 		} else {
 			//ZACC zero accumulator
 			int24_t* dst = &ACC1;
@@ -315,21 +315,6 @@ void Emulator::exec1st() {
 		int24_t* dst = arith(ArithOperation::Cmp);
 	} break;
 
-	case 0x3C: //ADD CMEM + DMEM
-		if (opcode1_flag8) {
-			arith(ArithOperation::Sub);
-		} else {
-			arith(ArithOperation::Add);
-		}
-		break;
-	case 0x3D: //AND bitwise CMEM AND DMEM
-		if (opcode1_flag8) {
-			arith(ArithOperation::Or);
-		} else {
-			arith(ArithOperation::And);
-		}
-		break;
-
 	case 0x39:
 		//TODO: 16-bit truncation for the 16-bit mode
 		if (opcode1_flag4) { //WRE
@@ -352,6 +337,21 @@ void Emulator::exec1st() {
 				XMEM_read_cycles = CR3.XWORD ? 0 : 6;
 				break;
 			}
+		}
+		break;
+
+	case 0x3C: //ADD CMEM + DMEM
+		if (opcode1_flag8) {
+			arith(ArithOperation::Sub);
+		} else {
+			arith(ArithOperation::Add);
+		}
+		break;
+	case 0x3D: //AND bitwise CMEM AND DMEM
+		if (opcode1_flag8) {
+			arith(ArithOperation::Or);
+		} else {
+			arith(ArithOperation::And);
 		}
 		break;
 
@@ -452,7 +452,9 @@ void Emulator::exec1st() {
 		}
 
 		//Shift MAC right by 24
-		MACx->shift(-24);
+		if (CR1.MASM == 0) {
+			MACx->shift(-24);
+		}
 
 		MACx->mac(*ACCx, *word, MACSigns::SS, negate);
 	} break;
@@ -498,7 +500,9 @@ void Emulator::exec1st() {
 		}
 
 		//Shift MAC right by 24
-		MACx->shift(-24);
+		if (CR1.MASM == 0) {
+			MACx->shift(-24);
+		}
 
 		MACx->mac(*cmem_word, *dmem_word, signs, negate);
 	} break;
@@ -517,9 +521,9 @@ void Emulator::exec1st() {
 
 	case 0x73: //Zero MACC (and something else)
 		if (opcode1_flag8) {
-#if UNKNOWN_STRICT
-			assert(false); //idk
-#endif
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
 		} else {
 			//Zero MACC
 			MAC* MACx = &MACC1;
@@ -592,9 +596,10 @@ void Emulator::exec1st() {
 			}
 			break;
 		default:
-#if UNKNOWN_STRICT
-			assert(false); //unknown
-#endif
+			if (UNKNOWN_STRICT) {
+				assert(false); //unknown
+			}
+			break;
 		}
 		break;
 
@@ -698,10 +703,11 @@ void Emulator::exec1st() {
 		break;
 
 	default:
-#if UNKNOWN_STRICT
-		assert(false);
-#endif
 		tms_printf("Unhandled 1st instruction: %08X\n", insn);
+		if (UNKNOWN_STRICT) {
+			printf("Unhandled 1st instruction: %08X\n", insn); //always print if we hit the assert
+			assert(false);
+		}
 		break;
 	}
 }
@@ -918,16 +924,16 @@ void Emulator::exec2nd() {
 	case 0x20:
 		if (opcode2_flag8) { //Save XRD to DMEM
 			if (opcode2_flag4) {
-#if UNKNOWN_STRICT
-				assert(false); //Broken/idk
-#endif
+				if (UNKNOWN_STRICT) {
+					assert(false); //Broken/idk
+				}
 			} else {
 				DMEM[dmemAddressing()].value = XRD.value;
 			}
 		} else {
-#if UNKNOWN_STRICT
-			assert(false); //Broken/idk
-#endif
+			if (UNKNOWN_STRICT) {
+				assert(false); //Broken/idk
+			}
 		}
 		break;
 
@@ -982,6 +988,10 @@ void Emulator::exec2nd() {
 		XOFF--; //TODO: is this conditional?
 		break;
 
+	case 0x28:
+		CR1.MASM = opcode2_args;
+		break;
+
 	case 0x29: //MAC shifter mode
 	{
 		CR1.MOSM = opcode2_args;
@@ -1033,10 +1043,11 @@ void Emulator::exec2nd() {
 		break;
 
 	default:
-#if UNKNOWN_STRICT
-		assert(false);
-#endif
 		tms_printf("Unhandled 2nd instruction: %08X\n", insn);
+		if (UNKNOWN_STRICT) {
+			printf("Unhandled 2nd instruction: %08X\n", insn); //Always print if we hit the assert
+			assert(false);
+		}
 		break;
 	}
 }
@@ -1185,9 +1196,10 @@ void Emulator::execJmp() {
 		
 		break;
 	default:
-#if UNKNOWN_STRICT
-		assert(false); //Unhandled jump type
-#endif
+		if (UNKNOWN_STRICT) {
+			assert(false); //Unhandled jump type
+		}
+		break;
 	}
 	if (condition_pass) {
 		if (is_call) {

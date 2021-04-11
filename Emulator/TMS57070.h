@@ -11,13 +11,16 @@
 #else
 #define tms_printf(...)
 #endif
-#define UNKNOWN_STRICT 1 //Treat unknown instructions and behaviour as a fatal error
 
 constexpr uint32_t UINT24_MAX = 0xFFFFFF;
 constexpr int32_t INT24_MAX = 0x7FFFFF;
 constexpr int32_t INT24_MIN = -0x800000;
 
 namespace TMS57070 {
+
+    //Treat unknown instructions and behaviour as a fatal error
+    //NDEBUG must not be defined for assert() to work
+    constexpr bool UNKNOWN_STRICT = true;
 
     struct uint9_t {
         uint16_t value : 9;
@@ -68,8 +71,7 @@ namespace TMS57070 {
             uint8_t MACOV1 : 1;
             uint8_t unk4 : 1;
             uint8_t MOSM : 2; //5:4
-            uint8_t unk5 : 1;
-            uint8_t unk6 : 1;
+            uint8_t MASM : 2; //7:6
             //byte 2
             uint8_t MOVM : 1;
             uint8_t unk0 : 1;
