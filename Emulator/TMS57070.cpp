@@ -9,9 +9,9 @@ void Emulator::reset() {
 	RPTC = 0;
 
 	CR0.value = 0xAA9BAD;
-	CR1.value = 0x810800;
+	CR1.value = 0x810100;
 	CR2.value = 0x30FF00;
-	CR3.value = 0xE00000;
+	CR3.value = 0xE50000;
 }
 
 void Emulator::step() {
@@ -186,7 +186,7 @@ static std::string jsonValue(const char* name, uint32_t value) {
 	snprintf(temp, TEMP_LEN, "%06lX", value);
 	int temp_pos = 0;
 	if (strlen(temp) > 6) {
-		temp_pos = strlen(temp) - 6;
+		temp_pos = (int)strlen(temp) - 6;
 	}
 	assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
 	build.append(temp + temp_pos);
@@ -229,7 +229,7 @@ std::string Emulator::reportState() {
 		snprintf(temp, TEMP_LEN, "%06lX", CMEM[i].value);
 		int temp_pos = 0;
 		if (strlen(temp) > 6) {
-			temp_pos = strlen(temp) - 6;
+			temp_pos = (int)strlen(temp) - 6;
 		}
 		assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
 		report.append(temp + temp_pos);
@@ -246,7 +246,7 @@ std::string Emulator::reportState() {
 		snprintf(temp, TEMP_LEN, "%06lX", DMEM[i].value);
 		int temp_pos = 0;
 		if (strlen(temp) > 6) {
-			temp_pos = strlen(temp) - 6;
+			temp_pos = (int)strlen(temp) - 6;
 		}
 		assert(strlen(temp + temp_pos) == 6); //Hex length is always 6
 		report.append(temp + temp_pos);
