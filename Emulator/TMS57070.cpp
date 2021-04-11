@@ -10,7 +10,7 @@ void Emulator::reset() {
 
 	CR0.value = 0xAA9BAD;
 	CR1.value = 0x810100;
-	CR2.value = 0x30FF00;
+	CR2.value = 0x32FA00;
 	CR3.value = 0xE50000;
 }
 

@@ -1040,6 +1040,10 @@ void Emulator::exec2nd() {
 			}
 		}
 		break;
+	case 0x0E: //Non-existent channels
+	case 0x0F:
+		DMEM[dmemAddressing()].value = 0;
+		break;
 
 	case 0x18:
 		if (opcode2_flag8) { //right channel
