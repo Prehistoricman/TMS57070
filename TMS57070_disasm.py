@@ -827,8 +827,19 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.insn[1].type = o_near #2nd operand is loop end
         
+        self.insn.itype = self.get_instruction("RPTK") #Overridden by RPTB
+        
         if (self.b1 == 0xE0):
-            self.insn.itype = self.get_instruction("RPTK")
+            self.insn[1].addr = self.insn.ea + self.insn.size
+        elif (self.b1 == 0xE2):
+            self.insn[0].type = o_reg
+            self.insn[0].reg = self.get_register("ACC1")
+        
+            self.insn[1].addr = self.insn.ea + self.insn.size
+        elif (self.b1 == 0xE3):
+            self.insn[0].type = o_reg
+            self.insn[0].reg = self.get_register("ACC2")
+        
             self.insn[1].addr = self.insn.ea + self.insn.size
         elif (self.b1 == 0xE4):
             self.insn.itype = self.get_instruction("RPTB")
@@ -1525,7 +1536,7 @@ class TMS57070_processor(idaapi.processor_t):
         elif opcode1 >= 0xCA and opcode1 <= 0xCF:
             #Load register with immediate
             self.ana_lri_long()
-        elif opcode1 == 0xE0 or opcode1 == 0xE4:
+        elif opcode1 == 0xE0 or opcode1 == 0xE2 or opcode1 == 0xE3 or opcode1 == 0xE4:
             self.ana_repeat()
         elif opcode1 == 0xEC:
             insn.itype = self.get_instruction("RET")
