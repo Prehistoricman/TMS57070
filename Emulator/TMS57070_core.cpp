@@ -702,6 +702,18 @@ void Emulator::exec1st() {
 		}
 		break;
 
+	case 0x74: //Zero both MACCs (and something else)
+		if (opcode1_flag8 || opcode1_flag4) {
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
+		} else {
+			//Zero MACCs
+			MACC1.set(0);
+			MACC2.set(0);
+		}
+		break;
+
 	case 0x75: //NOP
 	case 0x76:
 	case 0x77:
@@ -836,6 +848,16 @@ void Emulator::exec1st() {
 
 	case 0xE0: //RPTK repeat next instruction
 		RPTC = insn >> 16;
+		rep_start_PC.value = PC.value;
+		rep_end_PC.value = PC.value;
+		break;
+	case 0xE2: //RPTK by ACC1
+		RPTC = ACC1.value;
+		rep_start_PC.value = PC.value;
+		rep_end_PC.value = PC.value;
+		break;
+	case 0xE3: //RPTK by ACC2
+		RPTC = ACC2.value;
 		rep_start_PC.value = PC.value;
 		rep_end_PC.value = PC.value;
 		break;
