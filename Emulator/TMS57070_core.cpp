@@ -55,8 +55,8 @@ int24_t* Emulator::arith(ArithOperation operation) {
 	}
 	//Where is the data source?
 	uint8_t src_code = opcode1 & 3;
-	int24_t lhs;
-	int24_t rhs;
+	int24_t lhs{};
+	int24_t rhs{};
 	if ((opcode1 == 0x3C) || (opcode1 == 0x3D) || (opcode1 == 0x3E)) {
 		//These instructions use CMEM and DMEM always
 		lhs.value = DMEM[dmemAddressing()].value;
@@ -337,7 +337,6 @@ void Emulator::exec1st() {
 	} break;
 
 	case 0x39:
-		//TODO: 16-bit truncation for the 16-bit mode
 		if (opcode1_flag4) { //WRE
 			//FIXME: write is not immediate and can clash with other XMEM operations
 			XMEM[xmemAddressing(CMEM[cmemAddressing()].value)].value = DMEM[dmemAddressing()].value;
@@ -732,7 +731,7 @@ void Emulator::exec1st() {
 	case 0x7C:
 	case 0x7D: //Load MAC low
 	{
-		int24_t load_word;
+		int24_t load_word{};
 		if ((opcode1 & 0x1) == 0) { //Instructions 78, 7A, 7C: DMEM and ACC1
 			if (opcode1_flag8) {
 				load_word.value = ACC1.value;
@@ -836,7 +835,7 @@ void Emulator::exec1st() {
 	case 0xCE: //Load CR2 imm
 	{
 		//Handle flag behaviour
-		cr2_t temp;
+		cr2_t temp{};
 		temp.value = insn;
 		uint8_t flagsToClear = temp.bytes[0] & CR2.bytes[0]; //Only clear flags that are common to both the input value and current value
 		temp.bytes[0] = CR2.bytes[0] ^ flagsToClear; //Erase common bits
@@ -968,7 +967,36 @@ void Emulator::exec2nd() {
 			}
 		}
 		break;
-
+	case 0x04: //Load DA from ACC
+		if (opcode2_flag4) {
+			if (opcode2_flag8) {
+				DA.two.value = ACC2.value;
+			} else {
+				DA.one.value = ACC2.value;
+			}
+		} else {
+			if (opcode2_flag8) {
+				DA.two.value = ACC1.value;
+			} else {
+				DA.one.value = ACC1.value;
+			}
+		}
+		break;
+	case 0x05: //Load CA from ACC
+		if (opcode2_flag4) {
+			if (opcode2_flag8) {
+				CA.two.value = ACC2.value;
+			} else {
+				CA.one.value = ACC2.value;
+			}
+		} else {
+			if (opcode2_flag8) {
+				CA.two.value = ACC1.value;
+			} else {
+				CA.one.value = ACC1.value;
+			}
+		}
+		break;
 	case 0x06: //Load dual from CMEM
 	{
 		//Load: (arg = 0-3) DA, DIR, CA, DIR
@@ -992,6 +1020,22 @@ void Emulator::exec2nd() {
 			break;
 		}
 	} break;
+	case 0x07: //Save dual to CMEM
+		switch (opcode2_args) {
+		case 0: //Save DA
+			CMEM[cmemAddressing()].value = DA.two.value << 12 | DA.one.value;
+			break;
+		case 1: //Save DIR
+			CMEM[cmemAddressing()].value = DIR.two.value << 12 | DIR.one.value;
+			break;
+		case 2: //Save CA
+			CMEM[cmemAddressing()].value = CA.two.value << 12 | CA.one.value;
+			break;
+		case 3: //Save CIR
+			CMEM[cmemAddressing()].value = CIR.two.value << 12 | CIR.one.value;
+			break;
+		}
+		break;
 	case 0x08: //Dereference CMEM ptr to DMEM addressing register
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
 			if (opcode2_flag8) {
@@ -1172,24 +1216,20 @@ void Emulator::exec2nd() {
 
 	case 0x27: //Handle circular memory
 		if (!CR1.LCMEM) {
-			uint32_t insn_temp = insn;
-			insn = 0x00002000 + CCIRC.value; //ugly hack
-			uint32_t current_end = CMEM[cmemAddressing()].value;
+			uint32_t current_end = CMEM[cmemAddressing(CCIRC.value)].value;
 			COFF.value--;
-			insn = 0x00002000; //ugly hack
-			CMEM[cmemAddressing()].value = current_end; //Set new start to old end
+			CMEM[cmemAddressing(0x0)].value = current_end; //Set new start to old end
 		}
 		if (!CR1.LDMEM) {
-			uint32_t insn_temp = insn;
-			insn = 0x00002000 + DCIRC.value; //ugly hack
-			uint32_t current_end = DMEM[dmemAddressing()].value;
+			uint32_t current_end = DMEM[dmemAddressing(DCIRC.value)].value;
 			DOFF.value--;
-			insn = 0x00002000; //ugly hack
-			DMEM[dmemAddressing()].value = current_end; //Set new start to old end
+			DMEM[dmemAddressing(0x0)].value = current_end; //Set new start to old end
 
-			DA.two.value = 0;
+			DA.two.value = 0; //TODO: is this conditional?
 		}
-		XOFF--; //TODO: is this conditional?
+		if (!CR3.LXMEM) {
+			XOFF--;
+		}
 		break;
 
 	case 0x28:
@@ -1292,15 +1332,25 @@ uint32_t Emulator::cmemAddressing() {
 		assert(false); //Should not happen
 	}
 
+	return cmemAddressing(addr);
+}
+//Returns raw CMEM address of a requested CMEM address
+uint32_t Emulator::cmemAddressing(uint16_t addr) {
 	if (!CR1.LCMEM) {
 		addr += COFF.value;
 	}
-	
+
 	if (CR1.EXT && CR1.EXTMEM) { //CMEM is 512 words
-		return addr & 0x1FF;
+		addr &= 0x1FF;
 	} else { //CMEM is 256 words
-		return addr & 0xFF;
+		addr &= 0xFF;
 	}
+
+	if (addr == 0x38) {
+		//printf("Instruction at %X accessed CMEM 38\n", PC.value);
+	}
+
+	return addr;
 }
 
 //Returns DMEM address specified by the current instruction
@@ -1331,20 +1381,37 @@ uint32_t Emulator::dmemAddressing() {
 		assert(false); //Should not happen
 	}
 
+	return dmemAddressing(addr);
+}
+//Returns raw DMEM address of a requested DMEM address
+uint32_t Emulator::dmemAddressing(uint16_t addr) {
 	if (!CR1.LDMEM) {
 		addr += DOFF.value;
 	}
 
 	if (CR1.EXT && !CR1.EXTMEM) { //DMEM is 512 words
-		return addr & 0x1FF;
+		addr &= 0x1FF;
 	} else { //DMEM is 256 words
-		return addr & 0xFF;
+		addr &= 0xFF;
 	}
+
+	return addr;
 }
 
 uint32_t Emulator::xmemAddressing(uint32_t addr) {
-	uint32_t xmem_size = (4096 * 4096) - 1; //TODO: replace this with the size as deduced from registers
-	return (addr + XOFF) & 0xFFFF;
+	uint32_t xmem_size;
+	switch (CR3.XBUS) {
+	default:
+	case 0: xmem_size = 0x4000; break;
+	case 1: xmem_size = 0x8000; break;
+	case 2: xmem_size = 0x10000; break;
+	case 3: xmem_size = 0x10000; break;
+	}
+	if (CR3.XWORD) {
+		xmem_size = xmem_size >> 1;
+	}
+	xmem_size--; //Convert size to bit mask
+	return (addr + XOFF) & xmem_size;
 }
 
 //Handle any jmp/call instruction

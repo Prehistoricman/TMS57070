@@ -121,11 +121,12 @@ namespace TMS57070 {
     union cr3_t {
         uint32_t value : 24;
         uint8_t bytes[3];
-        struct {
+        struct { //Ideally I'd like to be able to static_assert(sizeof( this struct )) but it's anonymous
             //byte 0
             uint8_t byte0 : 8;
             //byte 1
-            uint8_t byte1 : 8;
+            uint8_t byte1 : 7;
+            uint8_t LXMEM : 1;
             //byte 2
             uint8_t XWORD : 1;
             uint8_t XBUS : 2;
@@ -134,7 +135,6 @@ namespace TMS57070 {
             uint8_t unk2 : 1;
             uint8_t unk3 : 1;
             uint8_t unk4 : 1;
-            uint8_t unk5 : 1;
         };
     };
 
@@ -194,7 +194,9 @@ namespace TMS57070 {
         void execPostIncrements();
         interrupt_vector_t int_vector_decode(uint8_t);
         uint32_t cmemAddressing();
+        uint32_t cmemAddressing(uint16_t addr);
         uint32_t dmemAddressing();
+        uint32_t dmemAddressing(uint16_t addr);
         uint32_t xmemAddressing(uint32_t addr);
         int24_t* loadACC();
         int24_t* arith(ArithOperation operation);
@@ -254,7 +256,7 @@ namespace TMS57070 {
         uint12_t DOFF; //Current DMEM offset
         uint12_t DCIRC; //DMEM circular region end address
 
-        uint16_t XOFF; //Current XMEM offset
+        uint32_t XOFF; //Current XMEM offset
 
     private: //Non-register variables
         uint32_t insn; //Current instruction
