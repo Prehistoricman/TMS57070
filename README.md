@@ -25,10 +25,12 @@ See the [wiki tab](https://github.com/Prehistoricman/TMS57070/wiki)
 * Developed in Visual Studio 2019 as a console project
 * Pretty good accuracy and support
 * Tested against the real hardware in an automated process
-* Currently missing:
-  * Full XMEM functionality
+* Main omissions:
+  * Some XMEM functionality
   * Class 2 arithmetic/multiply instructions
   * Some flag functionality
   * MACC accuracy with large numbers
   * Good command line interface
   * A readme!
+* WAV file input and output courtesy of https://github.com/audionamix/wave
+  * MIT license in the main file "wave/file.h"
