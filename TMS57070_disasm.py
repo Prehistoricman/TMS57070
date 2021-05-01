@@ -112,6 +112,7 @@ class TMS57070_processor(idaapi.processor_t):
         "CR3",
         #Control register fields
         "CR1.MOSM",#MACC output shifter mode
+        "CR1.MRDM",#MACC output rounder mode
         "CR1.MOVM",#MACC overflow clamp mode
         "CR1.MASM",#MACC accumulation shifter mode
         "CR1.AOVM",#ACC overflow clamp mode
@@ -125,6 +126,10 @@ class TMS57070_processor(idaapi.processor_t):
         "DIR",
         "DIR1",
         "DIR2",
+        "DCIRC",
+        "DOFF",
+        "CCIRC",
+        "COFF",
         "XRD", #External memory read register
         "AX1R",#Right and left outputs
         "AX1L",
@@ -140,6 +145,7 @@ class TMS57070_processor(idaapi.processor_t):
         "US",
         "SU",
         "UU",
+        " ", #Special value for no register (used in circular advance instruction)
         "unkn" #placeholder for unknown register
     ]
     
@@ -237,6 +243,7 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'LML',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load low MACC with MEM or ACC"}, #7C, 7D
         {'name': 'LRI',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register"}, #Cx
         {'name': 'LRIAE',  'feature': CF_USE1 | CF_USE2, 'cmt': "Load immediate into register if accumulator greater than or equal to zero"}, #C14
+        {'name': 'PW',     'feature': CF_USE1,           'cmt': "Program PMEM word at address ACC with data from host interface"}, #D8, D9
         {'name': 'RPTK',   'feature': CF_USE1,           'cmt': "Repeat next instruction"}, #E0
         {'name': 'RPTB',   'feature': CF_USE1,           'cmt': "Repeat next block"}, #E4
         {'name': 'RET',    'feature': CF_STOP,           'cmt': "Return"}, #EC
@@ -260,6 +267,11 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'CBIOZ',  'feature': CF_CALL,           'cmt': "Call if BIO low"}, #FC8
         {'name': 'CUNKN',  'feature': CF_CALL,           'cmt': "Call of unknown function"}, #F88, others
         {'name': 'UNKN',   'feature': 0,                 'cmt': "unknown opcode"}, #placeholder
+    ]
+    
+    secondary_mnemonics = [
+        "NOISE",
+        "ADVANCE"
     ]
     
     # icode of the first instruction
@@ -363,10 +375,11 @@ class TMS57070_processor(idaapi.processor_t):
         #TODO read/write flag
         for i in range(6):
             op = insn[i]
+            specval_lower = op.specval & 0xFF
             if op.type == o_mem:
-                if (op.specval == 1):
+                if (specval_lower == 1):
                     insn.add_dref(op.addr + 0x400, 0, dr_R)
-                elif (op.specval == 2):
+                elif (specval_lower == 2):
                     insn.add_dref(op.addr + 0x200, 0, dr_R)
         
         return 1
@@ -383,20 +396,21 @@ class TMS57070_processor(idaapi.processor_t):
         logging.info("notify_out_operand")
         
         optype = op.type
+        specval_lower = op.specval & 0xFF
         
         if optype == o_reg:
             #Special case for SHACC and SHMAC
             if (ctx.insn.get_canon_mnem() in ["SHACC", "SHMAC"] and op.n == 0):
                 ctx.out_register(self.regNames[op.reg])
                 ctx.out_char(" ")
-                if (op.specval == 1):
+                if (specval_lower == 1):
                     ctx.out_symbol("<")
                     ctx.out_symbol("<")
-                elif (op.specval == 2):
+                elif (specval_lower == 2):
                     ctx.out_symbol(">")
                     ctx.out_symbol(">")
                 else:
-                    logger.error("notify_out_operand No specval for SHACC (specval = " + str(op.specval) + ")")
+                    logger.error("notify_out_operand No specval for SHACC (specval = " + str(specval_lower) + ")")
                 ctx.out_char(" ")
                 ctx.out_symbol("1")
                 
@@ -409,14 +423,14 @@ class TMS57070_processor(idaapi.processor_t):
                 ctx.out_register(self.regNames[op.reg])
                 if (op.specflag2 == 1):
                     ctx.out_symbol("+") #post-increment symbol
-                if op.specval == 1:
-                    ctx.out_register("CIR1")
-                elif op.specval == 2:
-                    ctx.out_register("CIR2")
-                elif op.specval == 3:
-                    ctx.out_register("DIR1")
-                elif op.specval == 4:
-                    ctx.out_register("DIR2")
+                    if specval_lower == 1:
+                        ctx.out_register("CIR1")
+                    elif specval_lower == 2:
+                        ctx.out_register("CIR2")
+                    elif specval_lower == 3:
+                        ctx.out_register("DIR1")
+                    elif specval_lower == 4:
+                        ctx.out_register("DIR2")
             
         elif optype == o_imm:
             ctx.out_symbol("#")
@@ -440,9 +454,9 @@ class TMS57070_processor(idaapi.processor_t):
             #Output memory region
             if (op.specflag3 == 1):
                 ctx.out_symbol("-") #minus sign
-            if (op.specval == 1):
+            if (specval_lower == 1):
                 ctx.out_printf("DMEM")
-            elif (op.specval == 2):
+            elif (specval_lower == 2):
                 ctx.out_printf("CMEM")
             else:
                 logging.error("notify_out_operand Wrong specval for memory region in operand")
@@ -500,11 +514,17 @@ class TMS57070_processor(idaapi.processor_t):
             ctx.out_char(" ") #At least one space between instructions
             ctx.out_spaces(39) #2nd instruc margin
             
-            ctx.out_printf("MOV ")
+            if insn[4].specflag4 == 0: #If it's not a 
+                ctx.out_printf("MOV ")
+            else:
+                ctx.out_printf(self.secondary_mnemonics[insn[4].specval >> 8])
+                ctx.out_printf(" ")
+            
             ctx.out_one_operand(4)
-            ctx.out_symbol(",")
-            ctx.out_char(" ")
-            ctx.out_one_operand(5) #Should always be 2
+            if insn[5].type != o_void:
+                ctx.out_symbol(",")
+                ctx.out_char(" ")
+                ctx.out_one_operand(5)
         
         ctx.out_spaces(62) #put comments at the same position
         ctx.out_symbol("|")
@@ -524,6 +544,11 @@ class TMS57070_processor(idaapi.processor_t):
         for x in self.instruc:
             if x['name'] == name:
                 return self.instruc.index(x)
+        raise Exception("Could not find instruction %s" % name)
+    
+    def get_secondary_instruction(self, name):
+        if name in self.secondary_mnemonics:
+            return self.secondary_mnemonics.index(name)
         raise Exception("Could not find instruction %s" % name)
     
     #returns name if name exists in regNames
@@ -681,6 +706,28 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[2].reg = self.get_register("DIR")
         elif self.b1 == 0xC5:
             self.insn[2].reg = self.get_register("CIR")
+        
+    def ana_lri_circ(self):
+        self.insn.itype = self.get_instruction("LRI")
+        
+        #2x 12-bit immediates
+        imm1 = self.b4 | (self.b3 & 0xF) << 8
+        imm2 = self.b3 >> 4 | (self.b2 << 4)
+        
+        memory = 'C' if self.b1 == 0xC8 else 'D'
+        
+        self.insn[0].type = o_imm
+        self.insn[0].value = imm2
+        
+        self.insn[1].type = o_reg
+        self.insn[1].reg = self.get_register(memory + "CIRC")
+        
+        self.insn[2].type = o_imm
+        self.insn[2].value = imm1
+        
+        self.insn[3].type = o_reg
+        self.insn[3].reg = self.get_register(memory + "OFF")
+        
     
     def ana_dmem_addressing(self, operand):
         arg = self.b3 & 0x30
@@ -818,6 +865,18 @@ class TMS57070_processor(idaapi.processor_t):
         logging.info("ana_dec")
         self.insn.itype = self.get_instruction("CPML")
         self.ana_load()
+        
+    def ana_programword(self):
+        logging.info("ana_programword")
+        self.insn.itype = self.get_instruction("PW")
+        
+        self.insn[0].type = o_reg
+        if self.b1 == 0xD8:
+            self.insn[0].reg = self.get_register("ACC1")
+        elif self.b1 == 0xD9:
+            self.insn[0].reg = self.get_register("ACC2")
+        else:
+            logging.error("Bad opcode")
     
     def ana_repeat(self):
         logging.info("ana_repeat")
@@ -1240,6 +1299,19 @@ class TMS57070_processor(idaapi.processor_t):
         self.insn[5].type = o_reg
         self.insn[5].reg = self.get_register("HIR")
         
+    def ana2_advance(self):
+        if (self.b3 >> 6) != 2:
+            self.insn[4].type = o_reg
+            self.insn[5].type = o_reg
+            self.insn[4].reg = self.get_register("unkn")
+            self.insn[5].reg = self.get_register("unkn")
+        else:
+            #Cicular memory advance 0027B000
+            self.insn[4].type = o_reg
+            self.insn[4].reg = self.get_register(" ")
+            self.insn[4].specflag4 = 1
+            self.insn[4].specval |= (self.get_secondary_instruction("ADVANCE") << 8)
+        
     def ana2_dereference(self):
         self.ana_cmem_addressing(4)
         
@@ -1267,10 +1339,26 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[4].value = modes[modeselect]
         else:
             self.insn[4].value = 0
-            logging.error("ana2_macshift modeselect out of array bounds")
+            logging.error("ana2_macshift modeselect %d out of array bounds" % modeselect)
         
         self.insn[5].type = o_reg
         self.insn[5].reg = self.get_register("CR1.MOSM")
+        
+    def ana2_macround(self):
+        self.insn[4].type = o_imm
+        
+        modes = [48, 24, 20, 18, 16, 16, 20, 18]
+        modeselect = self.b3 >> 6
+        if self.opcode2 == 0x2B:
+            modeselect += 4
+        if modeselect <= 7 and modeselect >= 0:
+            self.insn[4].value = modes[modeselect]
+        else:
+            self.insn[4].value = 0
+            logging.error("ana2_macround modeselect %d out of array bounds" % modeselect)
+        
+        self.insn[5].type = o_reg
+        self.insn[5].reg = self.get_register("CR1.MRDM")
         
     def ana2_masm(self):
         self.insn[4].type = o_imm
@@ -1322,6 +1410,21 @@ class TMS57070_processor(idaapi.processor_t):
         
         self.ana_cmem_addressing(4)
         
+    def ana2_load_acc(self, reg_base):
+        arg = self.b3 >> 6
+        
+        self.insn[4].type = o_reg
+        if arg & 1:
+            self.insn[4].reg = self.get_register("ACC2")
+        else:
+            self.insn[4].reg = self.get_register("ACC1")
+        
+        self.insn[5].type = o_reg
+        if arg & 2:
+            self.insn[5].reg = self.get_register(reg_base + "2")
+        else:
+            self.insn[5].reg = self.get_register(reg_base + "1")
+        
     def ana2_2C(self):
         arg = self.b3 >> 6
         
@@ -1358,6 +1461,18 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[5].reg = self.get_register("CR1.LDMEM")
         else:
             self.insn[5].reg = self.get_register("CR1.LCMEM")
+        
+    def ana2_noise(self):
+        if (self.b3 >> 6) < 2:
+            self.ana_dmem_addressing(4)
+            
+            self.insn[4].specflag4 = 1
+            self.insn[4].specval |= (self.get_secondary_instruction("NOISE") << 8)
+        else:
+            self.insn[4].type = o_reg
+            self.insn[5].type = o_reg
+            self.insn[4].reg = self.get_register("unkn")
+            self.insn[5].reg = self.get_register("unkn")
     
     def ana2(self):
         if self.opcode2 == 0x01:
@@ -1366,6 +1481,10 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_store("MACC1", "MACC2")
         elif self.opcode2 == 0x03:
             self.ana2_store("MACC1L", "MACC2L")
+        elif self.opcode2 == 0x04:
+            self.ana2_load_acc("DA")
+        elif self.opcode2 == 0x05:
+            self.ana2_load_acc("CA")
         elif self.opcode2 == 0x06:
             self.ana2_load_cmem("DA", "DIR", "CA", "CIR")
         elif self.opcode2 == 0x08 or self.opcode2 == 0x09:
@@ -1384,16 +1503,22 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_CR()
         elif self.opcode2 == 0x26:
             self.ana2_hir()
+        elif self.opcode2 == 0x27:
+            self.ana2_advance()
         elif self.opcode2 == 0x28:
             self.ana2_masm()
         elif self.opcode2 == 0x29:
             self.ana2_macshift()
+        elif self.opcode2 == 0x2A or self.opcode2 == 0x2B:
+            self.ana2_macround()
         elif self.opcode2 == 0x2C:
             self.ana2_2C()
         elif self.opcode2 == 0x2D:
             self.ana2_OVclamp()
         elif self.opcode2 == 0x2E:
             self.ana2_circular_mode()
+        elif self.opcode2 == 0x34:
+            self.ana2_noise()
         elif self.opcode2 != 0:
             #Unknown 2nd instruction
             self.insn[4].type = o_reg
@@ -1533,9 +1658,13 @@ class TMS57070_processor(idaapi.processor_t):
         elif opcode1 >= 0xC2 and opcode1 <= 0xC5:
             #load addressing registers with immediates
             self.ana_lri_dual()
+        elif opcode1 == 0xC7 or opcode1 == 0xC8:
+            self.ana_lri_circ()
         elif opcode1 >= 0xCA and opcode1 <= 0xCF:
             #Load register with immediate
             self.ana_lri_long()
+        elif opcode1 == 0xD8 or opcode1 == 0xD9:
+            self.ana_programword()
         elif opcode1 == 0xE0 or opcode1 == 0xE2 or opcode1 == 0xE3 or opcode1 == 0xE4:
             self.ana_repeat()
         elif opcode1 == 0xEC:
