@@ -8,6 +8,7 @@ void Emulator::reset() {
 	SP = 0;
 	RPTC = 0;
 
+	//TODO: read these from the input file
 	CR0.value = 0xAA9BAD;
 	CR1.value = 0x810100;
 	CR2.value = 0x30FF00;
@@ -175,6 +176,41 @@ void Emulator::ext_interrupt(uint8_t interrupt) {
 void Emulator::hir_interrupt(uint24_t input) {
 	CR2.HIR_IF = 1;
 	HIR.value = input.value;
+}
+
+void Emulator::update_mac_modes() {
+	int8_t output_shift = 0;
+	switch (CR1.MOSM) {
+	case 0: output_shift = 0; break;
+	case 1: output_shift = 2; break;
+	case 2: output_shift = 4; break;
+	case 3: output_shift = -8; break;
+	default: assert(false);
+	}
+	MACC1.output_shift = output_shift;
+	MACC2.output_shift = output_shift;
+	MACC1_delayed2.output_shift = output_shift;
+	MACC2_delayed2.output_shift = output_shift;
+	MACC1_delayed1.output_shift = output_shift;
+	MACC2_delayed1.output_shift = output_shift;
+
+	uint8_t bit_count;
+	switch (CR1.MRDM) {
+	case 0: bit_count = 0; break;
+	case 1: bit_count = 48 - 24; break;
+	case 2: bit_count = 48 - 20; break;
+	case 3: bit_count = 48 - 18; break;
+	case 4: bit_count = 48 - 16; break;
+	case 5: bit_count = 48 - 16; break;
+	case 6: bit_count = 48 - 20; break; //TODO: implement the difference between this and setting 2
+	case 7: bit_count = 48 - 18; break; //TODO: implement the difference between this and setting 3
+	}
+	MACC1.bit_count = bit_count;
+	MACC2.bit_count = bit_count;
+	MACC1_delayed2.bit_count = bit_count;
+	MACC2_delayed2.bit_count = bit_count;
+	MACC1_delayed1.bit_count = bit_count;
+	MACC2_delayed1.bit_count = bit_count;
 }
 
 static std::string jsonValue(const char* name, uint32_t value) {

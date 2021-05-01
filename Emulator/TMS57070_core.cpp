@@ -265,6 +265,19 @@ void Emulator::exec1st() {
 		}
 		break;
 
+	case 0x1F: //ZACC Zero accumulators (and something else)
+		if (opcode1_flag8 || opcode1_flag4) {
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
+		} else {
+			//ZACC zero accumulators
+			ACC1.value = 0;
+			ACC2.value = 0;
+			processACCValue(0); //Set flags
+		}
+		break;
+
 	case 0x20: //Add accumulator
 	case 0x21:
 	case 0x22:
@@ -831,6 +844,7 @@ void Emulator::exec1st() {
 		break;
 	case 0xCD: //Load CR1 imm
 		CR1.value = insn;
+		update_mac_modes(); //MAC modes are changed here, so must be updated
 		break;
 	case 0xCE: //Load CR2 imm
 	{
@@ -1185,7 +1199,28 @@ void Emulator::exec2nd() {
 		}
 		break;
 
-	case 0x23:
+	case 0x22: //Save CMEM to CR
+		switch (opcode2_args) {
+		case 0:
+			CR0.value = CMEM[cmemAddressing()].value;
+			tms_printf("CR0 set to %06X\n", CR0.value);
+			break;
+		case 1:
+			CR1.value = CMEM[cmemAddressing()].value;
+			update_mac_modes();
+			tms_printf("CR1 set to %06X\n", CR1.value);
+			break;
+		case 2:
+			CR2.value = CMEM[cmemAddressing()].value;
+			tms_printf("CR2 set to %06X\n", CR2.value);
+			break;
+		case 3:
+			CR3.value = CMEM[cmemAddressing()].value;
+			tms_printf("CR3 set to %06X\n", CR3.value);
+			break;
+		}
+		break;
+	case 0x23: //Save CR to CMEM
 		switch (opcode2_args) {
 		case 0:
 			CMEM[cmemAddressing()].value = CR0.value;
@@ -1235,26 +1270,15 @@ void Emulator::exec2nd() {
 	case 0x28:
 		CR1.MASM = opcode2_args;
 		break;
-
 	case 0x29: //MAC shifter mode
-	{
 		CR1.MOSM = opcode2_args;
-		int8_t output_shift = 0;
-		switch (CR1.MOSM) {
-		case 0: output_shift = 0; break;
-		case 1: output_shift = 2; break;
-		case 2: output_shift = 4; break;
-		case 3: output_shift = -8; break;
-		default: assert(false);
-		}
-		MACC1.output_shift = output_shift;
-		MACC2.output_shift = output_shift;
-		MACC1_delayed2.output_shift = output_shift;
-		MACC2_delayed2.output_shift = output_shift;
-		MACC1_delayed1.output_shift = output_shift;
-		MACC2_delayed1.output_shift = output_shift;
-	} break;
-
+		update_mac_modes();
+		break;
+	case 0x2A: //MAC rounder mode
+	case 0x2B:
+		CR1.MRDM = opcode2_args + (opcode2 == 0x2B ? 4 : 0);
+		update_mac_modes();
+		break;
 	case 0x2C:
 		if (opcode2_flag8) {
 			//Clear overflow bits

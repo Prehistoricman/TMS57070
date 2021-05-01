@@ -50,7 +50,8 @@ namespace TMS57070 {
 
 		void shift(int8_t amount);
 
-		int16_t output_shift;
+		int16_t output_shift; //Shift amount (negative is right shift)
+		uint8_t bit_count; //Number of LSBs to throw away
 
 	private:
 		int64_t mult_internal(int64_t lhs, int64_t rhs, bool negate);

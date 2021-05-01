@@ -1,5 +1,6 @@
 #include "TMS57070_MAC.h"
 #include "TMS57070.h"
+#include <cassert>
 
 using namespace TMS57070;
 
@@ -14,6 +15,7 @@ MAC::MAC(Emulator* dsp) {
 }
 
 int24_t MAC::getUpper() {
+	//Apply output shifter
 	int64_t raw_shifted = value.raw;
 	if (output_shift >= 0) {
 		raw_shifted = raw_shifted << output_shift;
@@ -21,6 +23,15 @@ int24_t MAC::getUpper() {
 		raw_shifted = raw_shifted >> (-output_shift);
 	}
 
+	//Apply output rounder (step 1)
+	int64_t mask = 0;
+	if (bit_count) {
+		int64_t carry = raw_shifted & (static_cast<int64_t>(1) << (bit_count - 1)); //Most significant bit which is about to be deleted
+		mask = (static_cast<int64_t>(1) << bit_count) - 1; //Mask of bits to be deleted
+		raw_shifted += carry << 1;
+	}
+
+	//Apply overflow limiter
 	int64_t upper = raw_shifted >> 24;
 	if (dsp->CR1.MOVM) {
 		if (upper > INT24_MAX) {
@@ -28,6 +39,11 @@ int24_t MAC::getUpper() {
 		} else if (upper < INT24_MIN) {
 			upper = INT24_MIN;
 		}
+	}
+
+	//Apply output rounder (step 2)
+	if (bit_count) {
+		upper = upper & ~(mask >> 24);
 	}
 
 	int24_t retval{ (int32_t)upper };

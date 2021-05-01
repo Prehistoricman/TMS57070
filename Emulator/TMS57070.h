@@ -67,9 +67,7 @@ namespace TMS57070 {
             uint8_t unk7 : 1;
             //byte 1
             uint8_t AOVM : 1;
-            uint8_t unk3 : 1;
-            uint8_t MACOV1 : 1;
-            uint8_t unk4 : 1;
+            uint8_t MRDM : 3; //1:3
             uint8_t MOSM : 2; //5:4
             uint8_t MASM : 2; //7:6
             //byte 2
@@ -201,6 +199,7 @@ namespace TMS57070 {
         int24_t* loadACC();
         int24_t* arith(ArithOperation operation);
         int32_t processACCValue(int32_t acc);
+        void update_mac_modes();
 
     public:
         uint32_t PMEM[512];
