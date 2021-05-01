@@ -1487,6 +1487,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_load_acc("CA")
         elif self.opcode2 == 0x06:
             self.ana2_load_cmem("DA", "DIR", "CA", "CIR")
+        elif self.opcode2 == 0x07:
+            self.ana2_store_cmem("DA", "DIR", "CA", "CIR")
         elif self.opcode2 == 0x08 or self.opcode2 == 0x09:
             self.ana2_dereference()
         elif self.opcode2 == 0x0A:
