@@ -265,6 +265,20 @@ void Emulator::exec1st() {
 		}
 		break;
 
+	case 0x1E: //Load dual data from MACC into ACC
+		if (opcode1_flag4) {
+			if (UNKNOWN_STRICT) {
+				assert(false); //idk
+			}
+		} else {
+			MAC* MACx = &MACC1;
+			if (opcode1_flag8) MACx = &MACC2;
+
+			ACC2.value = MACx->getUpper().value;
+			ACC1.value = MACx->getLower().value;
+		}
+		break;
+
 	case 0x1F: //ZACC Zero accumulators (and something else)
 		if (opcode1_flag8 || opcode1_flag4) {
 			if (UNKNOWN_STRICT) {
@@ -820,6 +834,12 @@ void Emulator::exec1st() {
 	case 0xC5: //Load CIR imm
 		CIR.one.value = (insn & 0xFFF);
 		CIR.two.value = ((insn >> 12) & 0xFFF);
+		break;
+	case 0xC6: //Load CA imm if above or equal
+		if (!CR1.ACCN) {
+			CA.one.value = (insn & 0xFFF);
+			CA.two.value = ((insn >> 12) & 0xFFF);
+		}
 		break;
 
 	case 0xC7: //Set DMEM circular registers

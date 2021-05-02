@@ -195,6 +195,7 @@ class TMS57070_processor(idaapi.processor_t):
         {'name': 'DEC',    'feature': CF_USE1 | CF_USE2, 'cmt': "Load into ACC and decrement"}, #18-1B
         {'name': 'SHACC',  'feature': CF_USE1 | CF_SHFT, 'cmt': "Shift ACC once left or right"}, #1C
         {'name': 'ZACC',   'feature': CF_USE1 | CF_USE2, 'cmt': "Zero ACC"}, #1D
+        {'name': 'DMOV',   'feature': CF_USE1 | CF_USE2, 'cmt': "Dual move MACC to ACC"}, #1E
         {'name': 'ADD',    'feature': CF_USE1 | CF_USE2, 'cmt': "Add MEM to ACC or MACC, store result in ACC"}, #20-23
         {'name': 'SUB',    'feature': CF_USE1 | CF_USE2, 'cmt': "Subtract ACC or MACC from MEM, store result in ACC"}, #24-27
         {'name': 'AND',    'feature': CF_USE1 | CF_USE2, 'cmt': "Bitwise logical AND ACC or MACC with MEM, store result in ACC"}, #28-2B
@@ -706,6 +707,12 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[2].reg = self.get_register("DIR")
         elif self.b1 == 0xC5:
             self.insn[2].reg = self.get_register("CIR")
+        elif self.b1 == 0xC6:
+            self.insn.itype = self.get_instruction("LRIAE")
+            self.insn[2].reg = self.get_register("CA")
+            
+            self.insn[3].type = o_reg
+            self.insn[3].reg = self.get_register("ACC")
         
     def ana_lri_circ(self):
         self.insn.itype = self.get_instruction("LRI")
@@ -937,6 +944,30 @@ class TMS57070_processor(idaapi.processor_t):
             self.insn[0].specval = 1
         else:
             self.insn[0].specval = 2
+        
+    def ana_dmov(self):
+        logging.info("ana_dmov")
+        self.insn.itype = self.get_instruction("DMOV")
+        
+        if self.b2 & 0x40:
+            #Unknown
+            pass
+        else:
+            #Move dual MACC to ACC
+            self.insn[0].type = o_reg
+            self.insn[1].type = o_reg
+            self.insn[2].type = o_reg
+            self.insn[3].type = o_reg
+            
+            self.insn[1].reg = self.get_register("ACC2")
+            self.insn[3].reg = self.get_register("ACC1")
+            
+            if self.b2 & 0x80:
+                self.insn[0].reg = self.get_register("MACC2")
+                self.insn[2].reg = self.get_register("MACC2L")
+            else:
+                self.insn[0].reg = self.get_register("MACC1")
+                self.insn[2].reg = self.get_register("MACC1L")
     
     def ana_zacc(self):
         logging.info("ana_zacc")
@@ -1550,6 +1581,9 @@ class TMS57070_processor(idaapi.processor_t):
         
         logging.debug("notify_ana opcode1: " + hex(opcode1, 2))
         
+        #Default in case the analysis function doesn't set anything
+        insn.itype = self.get_instruction("UNKN")
+        
         if opcode1 == 0x00:
             insn.itype = self.get_instruction("NOP")
         elif opcode1 >= 0x4 and opcode1 <= 0x7:
@@ -1564,6 +1598,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana_dec()
         elif opcode1 == 0x1C:
             self.ana_shacc()
+        elif opcode1 == 0x1E:
+            self.ana_dmov()
         elif opcode1 == 0x1D or opcode1 == 0x1F:
             self.ana_zacc()
         elif opcode1 >= 0x20 and opcode1 <= 0x23:
@@ -1657,7 +1693,7 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana_loadmacc("LML")
         elif opcode1 == 0xC1:
             self.ana_lri()
-        elif opcode1 >= 0xC2 and opcode1 <= 0xC5:
+        elif opcode1 >= 0xC2 and opcode1 <= 0xC6:
             #load addressing registers with immediates
             self.ana_lri_dual()
         elif opcode1 == 0xC7 or opcode1 == 0xC8:
@@ -1680,7 +1716,8 @@ class TMS57070_processor(idaapi.processor_t):
             logging.info("unknown instruction "  + hex(instruction_word, 8))
             #insn.size = 0
             #return 0
-            insn.itype = self.get_instruction("UNKN")
+        
+        if insn.itype == self.get_instruction("UNKN"):
             insn[0].type = o_imm
             insn[0].value = instruction_word
         
