@@ -205,6 +205,7 @@ namespace TMS57070 {
         uint32_t PMEM[512];
         int24_t CMEM[512];
         int24_t DMEM[512];
+        int24_t GMEM[256];
         int24_t XMEM[0xFFFFFF]; //This is the largest possible XMEM configuration
 
         cr0_t CR0;
@@ -256,6 +257,7 @@ namespace TMS57070 {
         uint12_t DCIRC; //DMEM circular region end address
 
         uint32_t XOFF; //Current XMEM offset
+        uint12_t GOFF; //Current GMEM offset
 
     private: //Non-register variables
         uint32_t insn; //Current instruction

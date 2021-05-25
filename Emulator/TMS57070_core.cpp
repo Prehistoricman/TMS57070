@@ -1219,6 +1219,24 @@ void Emulator::exec2nd() {
 		}
 		break;
 
+	case 0x21:
+		switch (opcode2_args) {
+		case 0: //Decrement DOFF and increment GOFF
+			DOFF.value--;
+			GOFF.value++;
+			break;
+		case 1: //BRDE Background ReaD External
+
+			break;
+		case 2: //Reset GMEM circular offset
+			GOFF.value = 0;
+			break;
+		case 3: //DRAM refresh
+			//do nothing
+			break;
+		}
+		break;
+
 	case 0x22: //Save CMEM to CR
 		switch (opcode2_args) {
 		case 0:
@@ -1280,11 +1298,12 @@ void Emulator::exec2nd() {
 			DOFF.value--;
 			DMEM[dmemAddressing(0x0)].value = current_end; //Set new start to old end
 
-			DA.two.value = 0; //TODO: is this conditional?
 		}
 		if (!CR3.LXMEM) {
 			XOFF--;
 		}
+		CA.two.value = 0;
+		DA.two.value = 0;
 		break;
 
 	case 0x28:
@@ -1328,6 +1347,11 @@ void Emulator::exec2nd() {
 		} else {
 			CR1.LDMEM = opcode2_flag4;
 		}
+		break;
+
+	case 0x30:
+		DMEM[dmemAddressing()].value = XRD.value;
+		XRD.value = 0xFFFFFF;
 		break;
 
 	default:
