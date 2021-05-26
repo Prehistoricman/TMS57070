@@ -169,7 +169,11 @@ int32_t Emulator::processACCValue(int32_t acc) {
 	return acc_i24.value;
 }
 
-void Emulator::exec1st() {
+void Emulator::execPrimary() {
+	opcode1 = insn >> 24;
+	opcode1_flag4 = insn & 0x00400000;
+	opcode1_flag8 = insn & 0x00800000;
+
 	switch (opcode1) {
 	case 0x00: //NOP
 	case 0x01:
@@ -945,7 +949,12 @@ void Emulator::exec1st() {
 	}
 }
 
-void Emulator::exec2nd() {
+void Emulator::execSecondary() {
+	opcode2 = (insn >> 16) & 0x3F;
+	opcode2_flag4 = insn & 0x00004000;
+	opcode2_flag8 = insn & 0x00008000;
+	opcode2_args = (insn >> 14) & 3; //This encompasses the above 2 flags
+
 	switch (opcode2) {
 	case 0x00: //NOP
 		break;
@@ -1204,18 +1213,23 @@ void Emulator::exec2nd() {
 		break;
 
 	case 0x20:
-		if (opcode2_flag8) { //Save XRD to DMEM
-			if (opcode2_flag4) {
-				if (UNKNOWN_STRICT) {
-					assert(false); //Broken/idk
-				}
-			} else {
-				DMEM[dmemAddressing()].value = XRD.value;
+		switch (opcode2_args) {
+		case 0: //Write DMEM to T
+			T.value = DMEM[dmemAddressing()].value;
+			break;
+		case 1: //Write T to GMEM
+			if (UNKNOWN_STRICT) {
+				assert(false); //Not implemented
 			}
-		} else {
+			break;
+		case 2: //Save XRD to DMEM
+			DMEM[dmemAddressing()].value = XRD.value;
+			break;
+		case 3:
 			if (UNKNOWN_STRICT) {
 				assert(false); //Broken/idk
 			}
+			break;
 		}
 		break;
 
@@ -1362,6 +1376,24 @@ void Emulator::exec2nd() {
 		}
 		break;
 	}
+}
+
+void Emulator::execClass2() {
+	uint32_t original_insn = insn;
+
+	//Class 2 instrucs simply are two of the primary instructions. One is from the range 00 - 3F (executed second).
+	//The other is from the range 40 - 7F (executed first, though they are mostly pipelined multiplications)
+	//The two argument bits are shifted over. Thus, we can construct a primary instruction out of the class2-specific parts
+
+	//Isolate argument, add 0x40 to convert to primary instruction opcode, then shift into position
+	uint32_t translated_primary_instruction = ((insn & 0x003FC000) + 0x00400000) << 8;
+
+	insn &= 0x00003FFF; //Keep addressing stuff
+	insn |= translated_primary_instruction; //Merge in translated instruction
+	execPrimary();
+
+	//Delete the first bit which makes this a class 2 instruction, so that it can be properly parsed by execPrimary
+	insn = original_insn & 0x7FFFFFFF;
 }
 
 //Returns CMEM address specified by the current instruction

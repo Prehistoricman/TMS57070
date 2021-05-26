@@ -37,20 +37,15 @@ void Emulator::step() {
 		PC.value++;
 	}
 
-	opcode1 = insn >> 24;
-	opcode1_flag4 = insn & 0x00400000;
-	opcode1_flag8 = insn & 0x00800000;
-	opcode2 = (insn >> 16) & 0x3F;
-	opcode2_flag4 = insn & 0x00004000;
-	opcode2_flag8 = insn & 0x00008000;
-	opcode2_args = (insn >> 14) & 3; //This encompasses the above 2 flags
-
-	if ((insn >> 24) >= 0x80) {
-		//Only primary instruction
-		exec1st();
-	} else {
-		exec2nd();
-		exec1st();
+	if ((insn >> 24) >= 0xC0) { //Only primary instruction
+		execPrimary();
+	} else if ((insn >> 24) >= 0x80) { //Class 2 instruction
+		execClass2();
+		execPrimary();
+		execPostIncrements();
+	} else { //Class 1 instruction
+		execSecondary();
+		execPrimary();
 		execPostIncrements();
 	}
 

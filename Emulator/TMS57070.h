@@ -186,8 +186,9 @@ namespace TMS57070 {
         std::string reportState();
 
     private:
-        void exec1st();
-        void exec2nd();
+        void execPrimary();
+        void execSecondary();
+        void execClass2();
         void execJmp();
         void execPostIncrements();
         interrupt_vector_t int_vector_decode(uint8_t);
@@ -232,6 +233,7 @@ namespace TMS57070 {
         int24_t ACC2;
         uint24_t HIR;
         int24_t XRD;
+        int24_t T;
 
         int24_t AR1L;
         int24_t AR1R;
