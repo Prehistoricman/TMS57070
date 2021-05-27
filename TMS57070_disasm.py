@@ -130,6 +130,7 @@ class TMS57070_processor(idaapi.processor_t):
         "DOFF",
         "CCIRC",
         "COFF",
+        "GOFF",
         "XRD", #External memory read register
         "AX1R",#Right and left outputs
         "AX1L",
@@ -272,7 +273,10 @@ class TMS57070_processor(idaapi.processor_t):
     
     secondary_mnemonics = [
         "NOISE",
-        "ADVANCE"
+        "ADVANCE",
+        "GDADVANCE",
+        "REFRESH",
+        "BRDE"
     ]
     
     # icode of the first instruction
@@ -1317,9 +1321,34 @@ class TMS57070_processor(idaapi.processor_t):
     def ana2_extern(self):
         self.insn[4].type = o_reg
         self.insn[4].reg = self.get_register("XRD")
-        
+        #TODO: other operations for this instruction
         #It is possible for this instruction to write to CMEM, but nothing uses it this way
         self.ana_dmem_addressing(5)
+    
+    def ana2_21(self):
+        arg = self.b3 >> 6
+        
+        if arg == 0:
+            self.insn[4].type = o_reg
+            self.insn[4].reg = self.get_register(" ")
+            self.insn[4].specflag4 = 1
+            self.insn[4].specval |= (self.get_secondary_instruction("GDADVANCE") << 8)
+        elif arg == 1: #Background XMEM read
+            self.insn[4].type = o_reg
+            self.insn[4].reg = self.get_register(" ")
+            self.insn[4].specflag4 = 1
+            self.insn[4].specval |= (self.get_secondary_instruction("BRDE") << 8)
+        elif arg == 2:
+            self.insn[4].type = o_imm
+            self.insn[4].value = 0
+            
+            self.insn[5].type = o_reg
+            self.insn[5].reg = self.get_register("GOFF")
+        elif arg == 3: #Memory refresh
+            self.insn[4].type = o_reg
+            self.insn[4].reg = self.get_register(" ")
+            self.insn[4].specflag4 = 1
+            self.insn[4].specval |= (self.get_secondary_instruction("REFRESH") << 8)
     
     def ana2_hir(self):
         if (self.b3 & 0x80 > 0):
@@ -1532,6 +1561,8 @@ class TMS57070_processor(idaapi.processor_t):
             self.ana2_output()
         elif self.opcode2 == 0x20:
             self.ana2_extern()
+        elif self.opcode2 == 0x21:
+            self.ana2_21()
         elif self.opcode2 == 0x22 or self.opcode2 == 0x23:
             self.ana2_CR()
         elif self.opcode2 == 0x26:
@@ -1642,9 +1673,11 @@ class TMS57070_processor(idaapi.processor_t):
         elif opcode1 == 0x4E:
             self.ana_mult_dual("MPY(8)")
         elif opcode1 == 0x43 or opcode1 == 0x47:
-            self.ana_shm("SHM")
+            #self.ana_shm("SHM")
+            pass
         elif opcode1 == 0x4B or opcode1 == 0x4F:
-            self.ana_shm("SHMU")
+            #self.ana_shm("SHMU")
+            pass
         elif opcode1 == 0x50 or opcode1 == 0x51:
             self.ana_mult_cmem("MAC(1)")
         elif opcode1 == 0x52 or opcode1 == 0x53:
