@@ -477,12 +477,12 @@ void Emulator::execPrimary() {
 		MACx->multiply(*cmem_word, *dmem_word, signs, negate);
 	} break;
 
-	case 0x43: //Multiply DMEM by 0.5
-	case 0x47: //same?
+	case 0x43: //Multiply DMEM by MACLO
+	case 0x47: //unsigned MACLO
 	case 0x4B: //unsigned DMEM
-	case 0x4F: //same?
+	case 0x4F: //unsigned both
 	{
-		MAC* MACx = &MACC1;
+		/*MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
 
 		bool negate = opcode1_flag8;
@@ -494,9 +494,13 @@ void Emulator::execPrimary() {
 			signs = MACSigns::SS;
 		} else {
 			signs = MACSigns::UU;
+		}*/
+
+		if (UNKNOWN_STRICT) {
+			assert(false); //Uses MACLO, unimplemented
 		}
 
-		MACx->multiply(int24_t{ 0x400000 }, *dmem_word, signs, negate);
+		//MACx->multiply(MACLO.value, *dmem_word, signs, negate);
 	} break;
 
 	case 0x50: //MAC CMEM by ACCx
@@ -1335,7 +1339,7 @@ void Emulator::execSecondary() {
 	case 0x2C:
 		if (opcode2_flag8) {
 			//Clear overflow bits
-			if (opcode1_flag4) {
+			if (opcode2_flag4) {
 				//MAC overflow bits
 				CR1.MOV = 0;
 				CR1.MOVL = 0;
