@@ -78,7 +78,7 @@ void MAC::set(uint64_t value) {
 }
 
 void MAC::set(MAC mac) {
-	this->value.raw = mac.value.raw;
+	this->value = mac.value;
 }
 
 void MAC::setUpper(int32_t upper) {
