@@ -158,7 +158,9 @@ namespace TMS57070 {
         out_3R,
     };
 
-    using sample_out_callback_t = void(Channel channel, int32_t value);
+    using sample_out_callback_t = void(*)(Channel channel, int32_t value);
+    using external_bus_in_callback_t = int32_t(*)(void);
+    using external_bus_out_callback_t = void(*)(int32_t value);
 
     enum class ArithOperation {
         Add,
@@ -177,12 +179,14 @@ namespace TMS57070 {
     class Emulator {
     public:
         void reset();
-        void step();
-        void sample_in(Channel channel, int32_t value);
-        void register_sample_out_callback(sample_out_callback_t cb);
-        void ext_interrupt(uint8_t interrupt);
-        void hir_interrupt(uint24_t input);
-        uint32_t hir_out();
+        void step(); //Clock the DSP
+        void sample_in(Channel channel, int32_t value); //Provide audio input samples
+        void register_sample_out_callback(sample_out_callback_t cb); //For receiving audio output samples
+        void register_external_bus_in_callback(external_bus_in_callback_t cb); //For providing parallel bus (ED## pins) input data
+        void register_external_bus_out_callback(external_bus_out_callback_t cb); //For receiving parallel bus (ED## pins) output data
+        void ext_interrupt(uint8_t interrupt); //Trigger external interrupt
+        void hir_interrupt(uint24_t input); //Trigger Host Interface interrupt (opcode 0x10) 
+        uint32_t hir_out(); //Read the Host Interface output register
         std::string reportState();
 
     private:
@@ -263,7 +267,9 @@ namespace TMS57070 {
 
     private: //Non-register variables
         uint32_t insn; //Current instruction
-        sample_out_callback_t* sample_out_cb = nullptr;
+        sample_out_callback_t sample_out_cb = nullptr;
+        external_bus_in_callback_t ext_bus_in_cb = nullptr;
+        external_bus_out_callback_t ext_bus_out_cb = nullptr;
 
         uint8_t opcode1;
         bool opcode1_flag4;

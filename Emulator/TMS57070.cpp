@@ -145,6 +145,13 @@ void Emulator::register_sample_out_callback(sample_out_callback_t cb) {
 	sample_out_cb = cb;
 }
 
+void Emulator::register_external_bus_in_callback(external_bus_in_callback_t cb) {
+	ext_bus_in_cb = cb;
+}
+void Emulator::register_external_bus_out_callback(external_bus_out_callback_t cb) {
+	ext_bus_out_cb = cb;
+}
+
 uint32_t Emulator::hir_out() {
 	uint32_t value = HIR.value;
 	HIR.value = 0;

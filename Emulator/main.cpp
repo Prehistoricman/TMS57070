@@ -5,6 +5,7 @@
 #include <cstring> //memcpy
 #include <cstdint>
 #include <cassert>
+#include <chrono> //For high resolution clock
 using namespace std;
 
 #include "TMS57070.h"
@@ -48,6 +49,14 @@ void dsp_sample_out(TMS57070::Channel channel, int32_t value) {
     }
 }
 
+int32_t dsp_ext_io_in() {
+    return 0xFFFFFF;
+}
+
+void dsp_ext_io_out(int32_t value) {
+    printf("External IO output: %X\n", value);
+}
+
 int main(int argc, char* argv[]) {
     uint32_t inject_word = 0;
     uint32_t replacement_word = 0;
@@ -67,6 +76,8 @@ int main(int argc, char* argv[]) {
 
     dsp.reset();
     dsp.register_sample_out_callback(dsp_sample_out);
+    dsp.register_external_bus_in_callback(dsp_ext_io_in);
+    dsp.register_external_bus_out_callback(dsp_ext_io_out);
 
 #if MODE == 2
     //Load dsp.PMEM
@@ -191,12 +202,18 @@ int main(int argc, char* argv[]) {
         dsp.CMEM[i].value = word;
     }
 
-    for (uint32_t i = 0; i < 4; i++)
-        dsp.step();
+    dsp.CR0.value = 0xAA9BAD;
+    dsp.CR1.value = 0x890100;
+    dsp.CR2.value = 0x30FF00;
+    dsp.CR3.value = 0xE68000;
 
     dsp.sample_in(TMS57070::Channel::in_1L, 0);
-    dsp.sample_in(TMS57070::Channel::in_1R, 0);
-    for (uint32_t i = 0; i < 1350; i++) {
+    dsp.sample_in(TMS57070::Channel::in_1R, 0); //Triggers test
+
+    for (uint32_t i = 0; i < 8; i++) //Scan past RESET
+        dsp.step();
+
+    while (dsp.PC.value != 0xD) { //Wait for program to be done
         dsp.step();
 
         //std::string report = dsp.reportState();

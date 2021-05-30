@@ -1368,8 +1368,22 @@ void Emulator::execSecondary() {
 		break;
 
 	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
 		DMEM[dmemAddressing()].value = XRD.value;
-		XRD.value = 0xFFFFFF;
+		if (ext_bus_in_cb) {
+			XRD.value = ext_bus_in_cb();
+		}
+		break;
+
+	case 0x38:
+	case 0x39:
+	case 0x3A:
+	case 0x3B:
+		if (ext_bus_out_cb) {
+			ext_bus_out_cb(DMEM[dmemAddressing()].value);
+		}
 		break;
 
 	default:
