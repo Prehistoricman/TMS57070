@@ -163,6 +163,15 @@ namespace TMS57070 {
     using external_bus_out_callback_t = void(*)(int32_t value);
 
     enum class ArithOperation {
+        //For instructions 04 - 1B
+        Load,
+        LoadUnsigned,
+        OnesComplement,
+        TwosComplement,
+        Increment,
+        Decrement,
+
+        //For instructions 20 - 37
         Add,
         Sub,
         And,
@@ -187,6 +196,7 @@ namespace TMS57070 {
         void ext_interrupt(uint8_t interrupt); //Trigger external interrupt
         void hir_interrupt(uint24_t input); //Trigger Host Interface interrupt (opcode 0x10) 
         uint32_t hir_out(); //Read the Host Interface output register
+        void set_bio(bool value);
         std::string reportState();
 
     private:
@@ -201,7 +211,7 @@ namespace TMS57070 {
         uint32_t dmemAddressing();
         uint32_t dmemAddressing(uint16_t addr);
         uint32_t xmemAddressing(uint32_t addr);
-        int24_t* loadACC();
+        int24_t* loadACCarith(ArithOperation operation);
         int24_t* arith(ArithOperation operation);
         int32_t processACCValue(int32_t acc);
         void update_mac_modes();
@@ -264,6 +274,8 @@ namespace TMS57070 {
 
         uint32_t XOFF; //Current XMEM offset
         uint12_t GOFF; //Current GMEM offset
+
+        bool BIO;
 
     private: //Non-register variables
         uint32_t insn; //Current instruction

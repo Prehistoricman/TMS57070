@@ -215,6 +215,10 @@ void Emulator::update_mac_modes() {
 	MACC2_delayed1.bit_count = bit_count;
 }
 
+void Emulator::set_bio(bool value) {
+	this->BIO = value;
+}
+
 static std::string jsonValue(const char* name, uint32_t value) {
 	std::string build;
 	constexpr int TEMP_LEN = 16;

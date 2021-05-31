@@ -5,7 +5,7 @@ using namespace TMS57070;
 
 //Decodes a load instruction and sets the ACC accordingly
 //Returns pointer to the destination ACC
-int24_t* Emulator::loadACC() {
+int24_t* Emulator::loadACCarith(ArithOperation operation) {
 	int32_t result;
 	//Where is the data destination?
 	int24_t* dst = &ACC1;
@@ -40,8 +40,33 @@ int24_t* Emulator::loadACC() {
 		assert(false); //Should not happen
 	}
 
+	switch (operation) {
+	case ArithOperation::LoadUnsigned:
+		if (result < 0) {
+			result = ~result + 1;
+		}
+		break;
+	case ArithOperation::Load:
+		//Nothing
+		break;
+	case ArithOperation::TwosComplement:
+		result = ~result + 1;
+		break;
+	case ArithOperation::OnesComplement:
+		result = ~result;
+		break;
+	case ArithOperation::Increment:
+		result++;
+		break;
+	case ArithOperation::Decrement:
+		result--;
+		break;
+	}
+
 	//Apply flags
 	dst->value = processACCValue(result);
+
+	tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
 
 	return dst;
 }
@@ -127,8 +152,6 @@ int24_t* Emulator::arith(ArithOperation operation) {
 		CR1.ACCN = result < 0;
 		return nullptr; //This value doesn't get saved to ACC
 		break;
-	default:
-		assert(false);
 	}
 
 	//Set flags
@@ -185,55 +208,43 @@ void Emulator::execPrimary() {
 	case 0x5:
 	case 0x6:
 	case 0x7:
-	{
-		int24_t* dst = loadACC();
-		if (dst->value < 0) { //TODO: test this
-			dst->value = ~dst->value + 1;
-		}
+		loadACCarith(ArithOperation::LoadUnsigned);
+		break;
 
-		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
-	} break;
-
-	case 0x8: //Load accumulator complemented
+	case 0x8: //Load accumulator with 2's complement aka negate
 	case 0x9:
 	case 0xA:
 	case 0xB:
-	{
-		int24_t* dst = loadACC();
-		dst->value = ~dst->value + 1; //TODO: saturation logic
+		loadACCarith(ArithOperation::TwosComplement);
+		break;
 
-		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
-	} break;
+	case 0x0C: //Load accumulator with 1's complement
+	case 0x0D:
+	case 0x0E:
+	case 0x0F:
+		loadACCarith(ArithOperation::OnesComplement);
+		break;
 
 	case 0x10: //Load accumulator
 	case 0x11:
 	case 0x12:
 	case 0x13:
-	{
-		int24_t* dst = loadACC();
-
-		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
-	} break;
+		loadACCarith(ArithOperation::Load);
+		break;
 
 	case 0x14: //Increment and load accumulator
 	case 0x15:
 	case 0x16:
 	case 0x17:
-	{
-		int24_t* dst = loadACC();
-		dst->value++;
-		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
-	} break;
+		loadACCarith(ArithOperation::Increment);
+		break;
 
 	case 0x18: //Decrement and load accumulator
 	case 0x19:
 	case 0x1A:
 	case 0x1B:
-	{
-		int24_t* dst = loadACC();
-		dst->value--;
-		tms_printf("Set ACC%d to %X\n", opcode1_flag4 + 1, dst->value);
-	} break;
+		loadACCarith(ArithOperation::Decrement);
+		break;
 
 	case 0x1C:
 	{ //SHACC shift accumulator
@@ -1536,7 +1547,7 @@ uint32_t Emulator::xmemAddressing(uint32_t addr) {
 void Emulator::execJmp() {
 	//Get the two nibbles after the first one. A jump instruction may be 0xF1800045 - in this case we want '18'
 	//Also AND with 7F to give jumps (0xF0 based) and calls (0xF8 based) the same conditions
-	uint8_t args = (insn >> (4 + 16)) & 0x7F;
+	uint8_t args = (insn >> (4 + 16)) & 0x7C;
 
 	bool is_call = opcode1 >= 0xF8;
 	bool condition_pass = false;
@@ -1581,8 +1592,8 @@ void Emulator::execJmp() {
 	case 0x50: //if MAC range overflow - CR1 bit 6
 		condition_pass = CR1.MOVR;
 		break;
-	case 0x58: //if BIO low TODO
-		
+	case 0x58: //if BIO low
+		condition_pass = BIO;
 		break;
 	default:
 		if (UNKNOWN_STRICT) {
