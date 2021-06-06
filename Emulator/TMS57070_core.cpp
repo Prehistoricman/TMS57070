@@ -61,6 +61,9 @@ int24_t* Emulator::loadACCarith(ArithOperation operation) {
 	case ArithOperation::Decrement:
 		result--;
 		break;
+	default:
+		assert(false);
+		result = 0;
 	}
 
 	//Apply flags
@@ -152,6 +155,9 @@ int24_t* Emulator::arith(ArithOperation operation) {
 		CR1.ACCN = result < 0;
 		return nullptr; //This value doesn't get saved to ACC
 		break;
+	default:
+		assert(false);
+		result = 0;
 	}
 
 	//Set flags
@@ -382,9 +388,10 @@ void Emulator::execPrimary() {
 		if (opcode1_flag4) { //WRE
 			//FIXME: write is not immediate and can clash with other XMEM operations
 			XMEM[xmemAddressing(CMEM[cmemAddressing()].value)].value = DMEM[dmemAddressing()].value;
+			tms_printf("External write. addr=%06X data=%06X PC=%X\n", xmemAddressing(CMEM[cmemAddressing()].value), DMEM[dmemAddressing()].value, PC.value);
 		} else { //RDE
 			XMEM_read_addr = xmemAddressing(CMEM[cmemAddressing()].value);
-
+			tms_printf("External read. addr=%06X PC=%X\n", XMEM_read_addr, PC.value);
 			switch (CR3.XBUS) {
 			case 0: //4-bit
 				XMEM_read_cycles = CR3.XWORD ? 21 : 15;
@@ -533,6 +540,7 @@ void Emulator::execPrimary() {
 		} else {
 			word = &DMEM[dmemAddressing()];
 		}
+		
 		MACx->mac(*ACCx, *word, MACSigns::SS, negate);
 	} break;
 
@@ -1384,7 +1392,7 @@ void Emulator::execSecondary() {
 	case 0x33:
 		DMEM[dmemAddressing()].value = XRD.value;
 		if (ext_bus_in_cb) {
-			XRD.value = ext_bus_in_cb();
+			XRD.value = ext_bus_in_cb(CMEM[cmemAddressing()].value);
 		}
 		break;
 
@@ -1393,7 +1401,7 @@ void Emulator::execSecondary() {
 	case 0x3A:
 	case 0x3B:
 		if (ext_bus_out_cb) {
-			ext_bus_out_cb(DMEM[dmemAddressing()].value);
+			ext_bus_out_cb(DMEM[dmemAddressing()].value, CMEM[cmemAddressing()].value);
 		}
 		break;
 

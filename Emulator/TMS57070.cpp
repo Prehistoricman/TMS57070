@@ -64,6 +64,7 @@ void Emulator::step() {
 			if (!CR3.XWORD) {
 				XRD.value &= 0xFFFF00; //16-bit truncation
 			}
+			tms_printf("External read complete. addr=%06X data=%06X\n", XMEM_read_addr, XRD.value);
 		}
 	}
 

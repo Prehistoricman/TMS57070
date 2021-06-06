@@ -18,7 +18,7 @@ using namespace std;
 #define MODE 2
 
 constexpr uint32_t PMEM_MAX_WORDS = 0x1FF;
-constexpr uint32_t CMEM_MAX_WORDS = 0x0FF;
+constexpr uint32_t CMEM_MAX_WORDS = 0x1FF;
 constexpr uint32_t PMEM_INJECT_MAGIC = 0xFEEDBEE5; //used for my automatic emulation verification process.
 
 TMS57070::Emulator dsp;
@@ -49,12 +49,12 @@ void dsp_sample_out(TMS57070::Channel channel, int32_t value) {
     }
 }
 
-int32_t dsp_ext_io_in() {
+int32_t dsp_ext_io_in(uint32_t address) {
     return 0xFFFFFF;
 }
 
-void dsp_ext_io_out(int32_t value) {
-    printf("External IO output: %X\n", value);
+void dsp_ext_io_out(int32_t value, uint32_t address) {
+    printf("External IO output: %X address: %X\n", value, address);
 }
 
 int main(int argc, char* argv[]) {

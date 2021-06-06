@@ -159,8 +159,8 @@ namespace TMS57070 {
     };
 
     using sample_out_callback_t = void(*)(Channel channel, int32_t value);
-    using external_bus_in_callback_t = int32_t(*)(void);
-    using external_bus_out_callback_t = void(*)(int32_t value);
+    using external_bus_in_callback_t = int32_t(*)(uint32_t address);
+    using external_bus_out_callback_t = void(*)(int32_t value, uint32_t address);
 
     enum class ArithOperation {
         //For instructions 04 - 1B
