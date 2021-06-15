@@ -215,6 +215,7 @@ namespace TMS57070 {
         int24_t* arith(ArithOperation operation);
         int32_t processACCValue(int32_t acc);
         void update_mac_modes();
+        void addr_regs_pipeline_step();
 
     public:
         uint32_t PMEM[512];
@@ -291,15 +292,28 @@ namespace TMS57070 {
         bool opcode2_flag8;
         uint8_t opcode2_args;
 
-        //MACC values delayed by 1 cycle
+        //MACC values delayed by 0.5 cycle
         MAC MACC1_delayed1{ this };
         MAC MACC2_delayed1{ this };
-        //MACC values delayed by 2 cycles
+        //MACC values delayed by 1 cycle
         MAC MACC1_delayed2{ this };
         MAC MACC2_delayed2{ this };
 
         uint32_t XMEM_read_addr;
         uint32_t XMEM_read_cycles;
+
+        //Addressing regs pipeline
+        struct {
+            addr_reg_t* dual_ptr;
+            addr_reg_t dual_value;
+            uint12_t* single_ptr;
+            uint12_t single_value;
+
+            addr_reg_t* dual_ptr_delayed1;
+            addr_reg_t dual_value_delayed1;
+            uint12_t* single_ptr_delayed1;
+            uint12_t single_value_delayed1;
+        } addr_regs_pipeline;
     };
 
 }

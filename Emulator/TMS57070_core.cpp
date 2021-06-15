@@ -820,22 +820,24 @@ void Emulator::execPrimary() {
 
 	case 0xC1: //Load register with immediate
 		switch ((insn >> 16) & 0xFF) {
-		case 0x00: DA.one.value = insn; break;
-		case 0x08: DA.two.value = insn; break;
-		case 0x10: DIR.one.value = insn; break;
-		case 0x18: DIR.two.value = insn; break;
-		case 0x20: CA.one.value = insn; break;
-		case 0x28: CA.two.value = insn; break;
-		case 0x30: CIR.one.value = insn; break;
-		case 0x38: CIR.two.value = insn; break;
+		case 0x00: addr_regs_pipeline.single_ptr = &DA.one;    addr_regs_pipeline.single_value.value = insn; break;
+		case 0x08: addr_regs_pipeline.single_ptr = &DA.two;    addr_regs_pipeline.single_value.value = insn; break;
+		case 0x10: addr_regs_pipeline.single_ptr = &DIR.one;   addr_regs_pipeline.single_value.value = insn; break;
+		case 0x18: addr_regs_pipeline.single_ptr = &DIR.two;   addr_regs_pipeline.single_value.value = insn; break;
+		case 0x20: addr_regs_pipeline.single_ptr = &CA.one;    addr_regs_pipeline.single_value.value = insn; break;
+		case 0x28: addr_regs_pipeline.single_ptr = &CA.two;    addr_regs_pipeline.single_value.value = insn; break;
+		case 0x30: addr_regs_pipeline.single_ptr = &CIR.one;   addr_regs_pipeline.single_value.value = insn; break;
+		case 0x38: addr_regs_pipeline.single_ptr = &CIR.two;   addr_regs_pipeline.single_value.value = insn; break;
 		case 0x40: //LIRAE
 			if (!CR1.ACCN) {
-				CA.one.value = insn;
+				addr_regs_pipeline.single_ptr = &CA.one;
+				addr_regs_pipeline.single_value.value = insn;
 			}
 			break;
 		case 0x48: //LIRAE
 			if (!CR1.ACCN) {
-				CA.two.value = insn;
+				addr_regs_pipeline.single_ptr = &CA.two;
+				addr_regs_pipeline.single_value.value = insn;
 			}
 			break;
 		default:
@@ -847,25 +849,30 @@ void Emulator::execPrimary() {
 		break;
 
 	case 0xC2: //Load DA imm
-		DA.one.value = (insn & 0xFFF);
-		DA.two.value = ((insn >> 12) & 0xFFF);
+		addr_regs_pipeline.dual_ptr = &DA;
+		addr_regs_pipeline.dual_value.one.value = insn & 0xFFF;
+		addr_regs_pipeline.dual_value.two.value = (insn >> 12) & 0xFFF;
 		break;
 	case 0xC3: //Load DIR imm
-		DIR.one.value = (insn & 0xFFF);
-		DIR.two.value = ((insn >> 12) & 0xFFF);
+		addr_regs_pipeline.dual_ptr = &DIR;
+		addr_regs_pipeline.dual_value.one.value = insn & 0xFFF;
+		addr_regs_pipeline.dual_value.two.value = (insn >> 12) & 0xFFF;
 		break;
 	case 0xC4: //Load CA imm
-		CA.one.value = (insn & 0xFFF);
-		CA.two.value = ((insn >> 12) & 0xFFF);
+		addr_regs_pipeline.dual_ptr = &CA;
+		addr_regs_pipeline.dual_value.one.value = insn & 0xFFF;
+		addr_regs_pipeline.dual_value.two.value = (insn >> 12) & 0xFFF;
 		break;
 	case 0xC5: //Load CIR imm
-		CIR.one.value = (insn & 0xFFF);
-		CIR.two.value = ((insn >> 12) & 0xFFF);
+		addr_regs_pipeline.dual_ptr = &CIR;
+		addr_regs_pipeline.dual_value.one.value = insn & 0xFFF;
+		addr_regs_pipeline.dual_value.two.value = (insn >> 12) & 0xFFF;
 		break;
 	case 0xC6: //Load CA imm if above or equal
 		if (!CR1.ACCN) {
-			CA.one.value = (insn & 0xFFF);
-			CA.two.value = ((insn >> 12) & 0xFFF);
+			addr_regs_pipeline.dual_ptr = &CA;
+			addr_regs_pipeline.dual_value.one.value = insn & 0xFFF;
+			addr_regs_pipeline.dual_value.two.value = (insn >> 12) & 0xFFF;
 		}
 		break;
 

@@ -8,11 +8,16 @@ void Emulator::reset() {
 	SP = 0;
 	RPTC = 0;
 
-	//TODO: read these from the input file
+	//TODO: read these from the input file/host interface
 	CR0.value = 0xAA9BAD;
 	CR1.value = 0x810100;
 	CR2.value = 0x30FF00;
 	CR3.value = 0xE50000;
+	
+	addr_regs_pipeline.dual_ptr = nullptr;
+	addr_regs_pipeline.single_ptr = nullptr;
+	addr_regs_pipeline.dual_ptr_delayed1 = nullptr;
+	addr_regs_pipeline.single_ptr_delayed1 = nullptr;
 }
 
 void Emulator::step() {
@@ -36,6 +41,8 @@ void Emulator::step() {
 	} else {
 		PC.value++;
 	}
+	
+	addr_regs_pipeline_step();
 
 	if ((insn >> 24) >= 0xC0) { //Only primary instruction
 		execPrimary();
@@ -116,6 +123,24 @@ interrupt_vector_t Emulator::int_vector_decode(uint8_t flags) {
 	}
 	assert(false); //Should not happen
 	return interrupt_vector_t{};
+}
+
+void Emulator::addr_regs_pipeline_step() {
+	//Apply changes from two cycles ago
+	if (addr_regs_pipeline.dual_ptr_delayed1 != nullptr) {
+		*addr_regs_pipeline.dual_ptr_delayed1 = addr_regs_pipeline.dual_value_delayed1;
+	}
+	if (addr_regs_pipeline.single_ptr_delayed1 != nullptr) {
+		*addr_regs_pipeline.single_ptr_delayed1 = addr_regs_pipeline.single_value_delayed1;
+	}
+	
+	addr_regs_pipeline.dual_ptr_delayed1 = addr_regs_pipeline.dual_ptr;
+	addr_regs_pipeline.dual_value_delayed1 = addr_regs_pipeline.dual_value;
+	addr_regs_pipeline.single_ptr_delayed1 = addr_regs_pipeline.single_ptr;
+	addr_regs_pipeline.single_value_delayed1 = addr_regs_pipeline.single_value;
+
+	addr_regs_pipeline.dual_ptr = nullptr;
+	addr_regs_pipeline.single_ptr = nullptr;
 }
 
 void Emulator::sample_in(Channel channel, int32_t value) {
