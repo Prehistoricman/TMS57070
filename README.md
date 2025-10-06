@@ -33,3 +33,13 @@ See the [wiki tab](https://github.com/Prehistoricman/TMS57070/wiki)
   * A readme!
 * WAV file input and output courtesy of https://github.com/audionamix/wave
   * MIT license in the main file "wave/file.h"
+
+## Sniffer
+Arduino project for sniffing host interface traffic, for the purpose of dumping the PMEM and CMEM. For more information, [see the readme](Sniffer/readme.md)
+
+## TMS57070_Uploader
+Arduino project for TMS57070 interfacing and Qt project for TMS57070 control via the PC. Features:
+* PMEM and CMEM live upload
+* CMEM live view
+
+For more information, [see the readme](TMS57070_Uploader/readme.md)
