@@ -7,7 +7,7 @@
 
 #define TMSDEBUG 0
 #if TMSDEBUG
-#define tms_printf printf
+#define tms_printf(...) printf(__VA_ARGS__); fflush(stdout)
 #else
 #define tms_printf(...)
 #endif
@@ -20,7 +20,7 @@ namespace TMS57070 {
 
     //Treat unknown instructions and behaviour as a fatal error
     //NDEBUG must not be defined for assert() to work
-    constexpr bool UNKNOWN_STRICT = true;
+    constexpr bool UNKNOWN_STRICT = false; //false is slightly faster
 
     struct uint9_t {
         uint16_t value : 9;
@@ -218,17 +218,53 @@ namespace TMS57070 {
         void addr_regs_pipeline_step();
 
     public:
-        uint32_t PMEM[512];
-        int24_t CMEM[512];
-        int24_t DMEM[512];
-        int24_t GMEM[256];
-        int24_t XMEM[0xFFFFFF]; //This is the largest possible XMEM configuration
-
         cr0_t CR0;
         cr1_t CR1;
         cr2_t CR2;
         cr3_t CR3;
         uint9_t PC;
+
+        uint32_t PMEM[512];
+        int24_t CMEM[512];
+        int24_t DMEM[512];
+
+    private: //Non-register variables
+        uint32_t insn; //Current instruction
+        sample_out_callback_t sample_out_cb = nullptr;
+        external_bus_in_callback_t ext_bus_in_cb = nullptr;
+        external_bus_out_callback_t ext_bus_out_cb = nullptr;
+
+        uint8_t opcode1;
+        bool opcode1_flag4;
+        bool opcode1_flag8;
+        uint8_t opcode2;
+        bool opcode2_flag4;
+        bool opcode2_flag8;
+        uint8_t opcode2_args;
+
+        //MACC values delayed by 0.5 cycle
+        MAC MACC1_delayed1{ this };
+        MAC MACC2_delayed1{ this };
+        //MACC values delayed by 1 cycle
+        MAC MACC1_delayed2{ this };
+        MAC MACC2_delayed2{ this };
+
+        uint32_t XMEM_read_addr;
+        int32_t XMEM_read_cycles;
+        int32_t pipeline_delay; //Number of cycles to decrement XMEM_read_cycles by
+
+        //Addressing regs pipeline
+        struct {
+            addr_reg_t* dual_ptr;
+            addr_reg_t dual_value;
+            uint12_t* single_ptr;
+            uint12_t single_value;
+
+            addr_reg_t* dual_ptr_delayed1;
+            addr_reg_t dual_value_delayed1;
+            uint12_t* single_ptr_delayed1;
+            uint12_t single_value_delayed1;
+        } addr_regs_pipeline;
 
     private: //Registers
         uint8_t SP;
@@ -278,42 +314,9 @@ namespace TMS57070 {
 
         bool BIO;
 
-    private: //Non-register variables
-        uint32_t insn; //Current instruction
-        sample_out_callback_t sample_out_cb = nullptr;
-        external_bus_in_callback_t ext_bus_in_cb = nullptr;
-        external_bus_out_callback_t ext_bus_out_cb = nullptr;
-
-        uint8_t opcode1;
-        bool opcode1_flag4;
-        bool opcode1_flag8;
-        uint8_t opcode2;
-        bool opcode2_flag4;
-        bool opcode2_flag8;
-        uint8_t opcode2_args;
-
-        //MACC values delayed by 0.5 cycle
-        MAC MACC1_delayed1{ this };
-        MAC MACC2_delayed1{ this };
-        //MACC values delayed by 1 cycle
-        MAC MACC1_delayed2{ this };
-        MAC MACC2_delayed2{ this };
-
-        uint32_t XMEM_read_addr;
-        uint32_t XMEM_read_cycles;
-
-        //Addressing regs pipeline
-        struct {
-            addr_reg_t* dual_ptr;
-            addr_reg_t dual_value;
-            uint12_t* single_ptr;
-            uint12_t single_value;
-
-            addr_reg_t* dual_ptr_delayed1;
-            addr_reg_t dual_value_delayed1;
-            uint12_t* single_ptr_delayed1;
-            uint12_t single_value_delayed1;
-        } addr_regs_pipeline;
+    public: //Putting XMEM last improves performance
+        int24_t GMEM[256];
+        int24_t XMEM[0xFFFFFF]; //This is the largest possible XMEM configuration
     };
 
 }

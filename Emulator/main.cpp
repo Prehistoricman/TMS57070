@@ -15,6 +15,7 @@ using namespace std;
 
 //Mode 1 is used for my automatic emulation verification process.
 //Mode 2 is the normal mode where there is an input WAV file and output WAV
+//Mode 3 is used for my automatic emulation error checker
 #define MODE 2
 
 constexpr uint32_t PMEM_MAX_WORDS = 0x1FF;
@@ -130,6 +131,7 @@ int main(int argc, char* argv[]) {
     dsp.step();
     dsp.step();
     dsp.step();
+    auto start = std::chrono::high_resolution_clock::now();
     for (uint32_t i = 0; i < inSamples.size(); i++) { //sample_rate * 10
         dsp.sample_in(TMS57070::Channel::in_1L, (int32_t)(inSamples[i] * 0x7FFFFF));
         dsp.sample_in(TMS57070::Channel::in_1R, 0x450000); //Digitech XP series pedal input
@@ -149,6 +151,10 @@ int main(int argc, char* argv[]) {
         //std::string report = dsp.reportState();
         //std::cout << report << "\r";
     }
+    auto elapsed = std::chrono::high_resolution_clock::now() - start;
+    long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+    float milliseconds = (float)microseconds / 1000.0f;
+    printf("took %f ms\n", milliseconds);
 
     wave::File write_file;
     err = write_file.Open("output.wav", wave::kOut);
@@ -173,7 +179,7 @@ int main(int argc, char* argv[]) {
     ofstream reportFile("report.txt", std::ios::binary);
     reportFile.write(report.c_str(), report.size());
     reportFile.close();
-#else
+#elif MODE == 1
     //Load dsp.PMEM
     ifstream PMEMFile("D:/Documents/OneDrive/Documents/Digitech XP/Emulator/PMEM.bin", std::ios::binary);
     ifstream CMEMFile("D:/Documents/OneDrive/Documents/Digitech XP/Emulator/CMEM.bin", std::ios::binary);
@@ -228,6 +234,66 @@ int main(int argc, char* argv[]) {
     reportFile.write(report.c_str(), report.size());
     reportFile.close();
 
+#elif MODE == 3
+    //Load dsp.PMEM
+    ifstream PMEMFile("PMEM.bin", std::ios::binary);
+    ifstream CMEMFile("CMEM.bin", std::ios::binary);
+
+    uint32_t pmem_length = ifstream_length(&PMEMFile) - (3 * 4); //Minus the CR regs
+    uint32_t cmem_length = ifstream_length(&CMEMFile);
+    pmem_length = std::min(pmem_length / 4, PMEM_MAX_WORDS);
+    cmem_length = std::min(cmem_length / 3, CMEM_MAX_WORDS);
+
+    uint8_t readBuffer[4];
+
+    //Read CR initial values from file
+    PMEMFile.read((char*)readBuffer, 3);
+    dsp.CR0.value = readBuffer[0] << 16 | readBuffer[1] << 8 | readBuffer[2];
+    PMEMFile.read((char*)readBuffer, 3);
+    dsp.CR1.value = readBuffer[0] << 16 | readBuffer[1] << 8 | readBuffer[2];
+    PMEMFile.read((char*)readBuffer, 3);
+    dsp.CR2.value = readBuffer[0] << 16 | readBuffer[1] << 8 | readBuffer[2];
+    PMEMFile.read((char*)readBuffer, 3);
+    dsp.CR3.value = readBuffer[0] << 16 | readBuffer[1] << 8 | readBuffer[2];
+
+    //Read rest of PMEM from file
+    for (uint32_t i = 0; i < pmem_length; i++) {
+        PMEMFile.read((char*)readBuffer, 4);
+        uint32_t word = readBuffer[0] << 24 | readBuffer[1] << 16 | readBuffer[2] << 8 | readBuffer[3];
+        if (word == PMEM_INJECT_MAGIC) {
+            dsp.PMEM[i] = inject_word;
+        } else if (i == replacement_pos) {
+            dsp.PMEM[i] = replacement_word;
+        } else {
+            dsp.PMEM[i] = word;
+        }
+    }
+
+    for (uint32_t i = 0; i < cmem_length; i++) {
+        CMEMFile.read((char*)readBuffer, 3);
+        uint32_t word = readBuffer[0] << 16 | readBuffer[1] << 8 | readBuffer[2];
+        dsp.CMEM[i].value = word;
+    }
+
+    for (uint32_t i = 0; i < 8; i++) //Scan into RESET
+        dsp.step();
+
+    while (dsp.PC.value != 0x1) { //Wait for program to be done
+        dsp.step();
+
+        //std::string report = dsp.reportState();
+        //std::cout << report;
+    }
+
+    //Build state string
+    std::string report = dsp.reportState();
+    //std::cout << report;
+
+    ofstream reportFile("report.txt", std::ios::binary);
+    reportFile.write(report.c_str(), report.size());
+    reportFile.close();
+#else
+#error "don't know that mode"
 #endif
     return 0;
 }

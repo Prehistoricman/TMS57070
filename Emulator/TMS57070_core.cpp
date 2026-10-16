@@ -1625,10 +1625,13 @@ void Emulator::execJmp() {
 
 		PC.value = target_address;
 
-		if (is_call)
+		pipeline_delay = 2; //If the jump/call is taken, insert a pipeline delay of 2 cycles
+
+		if (is_call) {
 			tms_printf("Calling %03X\n", PC.value);
-		else
+		} else {
 			tms_printf("Jumping to %03X\n", PC.value);
+		}
 	}
 }
 
