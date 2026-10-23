@@ -300,11 +300,28 @@ void Emulator::execPrimary() {
 		}
 		break;
 
-	case 0x1F: //ZACC Zero accumulators (and something else)
-		if (opcode1_flag8 || opcode1_flag4) {
-			if (UNKNOWN_STRICT) {
-				assert(false); //idk
+	case 0x1F: //ZACC Zero accumulators (and divide)
+		if (opcode1_flag8 && !opcode1_flag4) {
+			//Division step on ACC2:ACC1 by DMEM. Repeat 24 times to get the quotient in ACC1
+			//Subtract if the 24-bit (wrapped) difference is not negative, then shift ACC2:ACC1 left and shift in the result
+			//Does not affect flags
+			uint32_t acc1 = ACC1.value & 0xFFFFFF;
+			uint32_t acc2 = ACC2.value & 0xFFFFFF;
+			uint32_t divisor = DMEM[dmemAddressing()].value & 0xFFFFFF;
+			uint32_t diff = (acc2 - divisor) & 0xFFFFFF;
+			bool subtract = !(diff & 0x800000);
+			if (subtract) {
+				acc2 = diff;
 			}
+			ACC2.value = (acc2 << 1) | (acc1 >> 23);
+			ACC1.value = (acc1 << 1) | (subtract ? 1 : 0);
+		} else if (opcode1_flag8) {
+			//1FC: same as 1F8 but the divisor comes from an internal ALU register (the last ADD/SUB/CMP/1F8 operand)
+			if (UNKNOWN_STRICT) {
+				assert(false); //Not implemented
+			}
+		} else if (opcode1_flag4) {
+			//1F4: NOP
 		} else {
 			//ZACC zero accumulators
 			ACC1.value = 0;
