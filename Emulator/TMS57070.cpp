@@ -9,7 +9,6 @@ void Emulator::reset() {
 	RPTC = 0;
 	XMEM_read_addr = 0;
 	XMEM_read_cycles = 0;
-	pipeline_delay = 1;
 
 	//TODO: read these from the input file/host interface
 	CR0.value = 0xAA9BAD;
@@ -47,6 +46,8 @@ void Emulator::step() {
 	
 	addr_regs_pipeline_step();
 
+	insn_cycles = 1; //Most instructions take 1 cycle. The exceptions set this while executing
+
 	if ((insn >> 24) >= 0xC0) { //Only primary instruction
 		execPrimary();
 	} else if ((insn >> 24) >= 0x80) { //Class 2 instruction
@@ -67,11 +68,9 @@ void Emulator::step() {
 
 	//Handle background XMEM reading
 	if (XMEM_read_cycles != 0) {
-		XMEM_read_cycles -= pipeline_delay;
-		if (pipeline_delay != 1) {
-			pipeline_delay = 1; //Extra delay only lasts one instruction
-		}
+		XMEM_read_cycles -= insn_cycles;
 		if (XMEM_read_cycles <= 0) {
+			XMEM_read_cycles = 0;
 			//Read is done
 			XRD.value = XMEM[XMEM_read_addr].value;
 			if (!CR3.XWORD) {

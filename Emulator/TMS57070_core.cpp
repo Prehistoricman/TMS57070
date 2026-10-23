@@ -917,16 +917,19 @@ void Emulator::execPrimary() {
 		RPTC = insn >> 16;
 		rep_start_PC.value = PC.value;
 		rep_end_PC.value = PC.value;
+		insn_cycles = RPTC ? 1 : 2; //A repeat count of 0 costs an extra cycle
 		break;
 	case 0xE2: //RPTK by ACC1
 		RPTC = ACC1.value;
 		rep_start_PC.value = PC.value;
 		rep_end_PC.value = PC.value;
+		insn_cycles = RPTC ? 3 : 4; //A repeat count of 0 costs an extra cycle
 		break;
 	case 0xE3: //RPTK by ACC2
 		RPTC = ACC2.value;
 		rep_start_PC.value = PC.value;
 		rep_end_PC.value = PC.value;
+		insn_cycles = RPTC ? 3 : 4; //A repeat count of 0 costs an extra cycle
 		break;
 	case 0xE4: //RTPB repeat block
 		RPTC = insn >> 16;
@@ -941,6 +944,7 @@ void Emulator::execPrimary() {
 		assert(SP != 0); //Stack underflow!
 		SP--;
 		PC.value = stack[SP].value;
+		insn_cycles = 2;
 		break;
 	case 0xEE: //RETI
 		assert(SP != 0); //Stack underflow!
@@ -948,6 +952,7 @@ void Emulator::execPrimary() {
 		PC.value = stack[SP].value;
 		CR2.FREE = 1;
 		RPTC = 0;
+		insn_cycles = 2; //Not measured. Assumed to be the same as RET
 		break;
 
 	case 0xF0: //Jmp
@@ -1616,6 +1621,16 @@ void Emulator::execJmp() {
 		}
 		break;
 	}
+
+	//Conditional jumps/calls take the same time whether or not they are taken
+	if (args == 0x00) {
+		insn_cycles = 2; //Unconditional
+	} else if (args == 0x08 || args == 0x0C) {
+		insn_cycles = 4; //Unconditional and indirect
+	} else {
+		insn_cycles = 3; //Conditional
+	}
+
 	if (condition_pass) {
 		if (is_call) {
 			assert(SP != 4); //Stack overflow!
@@ -1624,8 +1639,6 @@ void Emulator::execJmp() {
 		}
 
 		PC.value = target_address;
-
-		pipeline_delay = 2; //If the jump/call is taken, insert a pipeline delay of 2 cycles
 
 		if (is_call) {
 			tms_printf("Calling %03X\n", PC.value);

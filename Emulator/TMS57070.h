@@ -251,7 +251,7 @@ namespace TMS57070 {
 
         uint32_t XMEM_read_addr;
         int32_t XMEM_read_cycles;
-        int32_t pipeline_delay; //Number of cycles to decrement XMEM_read_cycles by
+        int32_t insn_cycles; //Cycles taken by the current instruction. XMEM_read_cycles is decremented by this
 
         //Addressing regs pipeline
         struct {
