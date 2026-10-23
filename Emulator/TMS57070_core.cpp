@@ -1360,6 +1360,7 @@ void Emulator::execSecondary() {
 		if (!CR3.LXMEM) {
 			XOFF--;
 		}
+		GOFF.value++; //Not conditional on LGMEM
 		CA.two.value = 0;
 		DA.two.value = 0;
 		break;
