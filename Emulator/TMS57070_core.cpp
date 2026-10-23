@@ -764,6 +764,9 @@ void Emulator::execPrimary() {
 			//Zero MACCs
 			MACC1.set(0);
 			MACC2.set(0);
+			//Pipeline delay is not incurred because the MAC unit is not involved
+			MACC1_delayed1.set(MACC1);
+			MACC2_delayed1.set(MACC2);
 		}
 		break;
 
@@ -811,6 +814,12 @@ void Emulator::execPrimary() {
 			} else {
 				MACC1.setLower(load_word.value);
 			}
+		}
+		//Pipeline delay is not incurred because the MAC unit is not involved
+		if (opcode1_flag4) {
+			MACC2_delayed1.set(MACC2);
+		} else {
+			MACC1_delayed1.set(MACC1);
 		}
 	} break;
 
