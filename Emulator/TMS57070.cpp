@@ -55,8 +55,15 @@ void Emulator::step() {
 		execPrimary();
 		execPostIncrements();
 	} else { //Class 1 instruction
-		execSecondary();
-		execPrimary();
+		//The mode secondaries 28-2B take effect after the primary of the same word
+		uint8_t secondary = (insn >> 16) & 0x3F;
+		if (secondary >= 0x28 && secondary <= 0x2B) {
+			execPrimary();
+			execSecondary();
+		} else {
+			execSecondary();
+			execPrimary();
+		}
 		execPostIncrements();
 	}
 

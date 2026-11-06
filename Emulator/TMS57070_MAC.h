@@ -43,6 +43,7 @@ namespace TMS57070 {
 		void multiply(int24_t value, MACSigns signs, bool negate);
 		void multiply(int24_t lhs, int24_t rhs, MACSigns signs, bool negate);
 		void multiply(MAC mac, MACSigns signs, bool negate);
+		void multiplyLower(int24_t rhs, bool rhs_unsigned, bool negate);
 
 		void mac(int24_t value, MACSigns signs, bool negate);
 		void mac(int24_t lhs, int24_t rhs, MACSigns signs, bool negate);

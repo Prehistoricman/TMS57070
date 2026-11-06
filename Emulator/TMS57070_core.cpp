@@ -447,9 +447,7 @@ void Emulator::execPrimary() {
 		break;
 	case 0x3E: //XOR bitwise CMEM AND DMEM
 		if (opcode1_flag8) {
-			if (UNKNOWN_STRICT) {
-				assert(false); //idk
-			}
+			arith(ArithOperation::Cmp); //Compare DMEM with CMEM, flags only
 		} else {
 			arith(ArithOperation::Xor);
 		}
@@ -517,25 +515,13 @@ void Emulator::execPrimary() {
 	case 0x4B: //unsigned DMEM
 	case 0x4F: //unsigned both
 	{
-		/*MAC* MACx = &MACC1;
+		MAC* MACx = &MACC1;
 		if (opcode1_flag4) MACx = &MACC2;
 
 		bool negate = opcode1_flag8;
 
-		int24_t* dmem_word = &DMEM[dmemAddressing()];
-
-		MACSigns signs;
-		if ((opcode1 & 8) == 0) {
-			signs = MACSigns::SS;
-		} else {
-			signs = MACSigns::UU;
-		}*/
-
-		if (UNKNOWN_STRICT) {
-			assert(false); //Uses MACLO, unimplemented
-		}
-
-		//MACx->multiply(MACLO.value, *dmem_word, signs, negate);
+		//Double precision: the low word is unsigned and the product sits 24 bits lower
+		MACx->multiplyLower(DMEM[dmemAddressing()], (opcode1 & 8) != 0, negate);
 	} break;
 
 	case 0x50: //MAC CMEM by ACCx
@@ -1071,58 +1057,27 @@ void Emulator::execSecondary() {
 			}
 		}
 		break;
-	case 0x04: //Load DA from ACC
-		if (opcode2_flag4) {
-			if (opcode2_flag8) {
-				DA.two.value = ACC2.value;
-			} else {
-				DA.one.value = ACC2.value;
-			}
-		} else {
-			if (opcode2_flag8) {
-				DA.two.value = ACC1.value;
-			} else {
-				DA.one.value = ACC1.value;
-			}
-		}
+	case 0x04: //Load DA from ACC, lands two steps later like C1
+		addr_regs_pipeline.single_ptr = opcode2_flag8 ? &DA.two : &DA.one;
+		addr_regs_pipeline.single_value.value = opcode2_flag4 ? ACC2.value : ACC1.value;
 		break;
-	case 0x05: //Load CA from ACC
-		if (opcode2_flag4) {
-			if (opcode2_flag8) {
-				CA.two.value = ACC2.value;
-			} else {
-				CA.one.value = ACC2.value;
-			}
-		} else {
-			if (opcode2_flag8) {
-				CA.two.value = ACC1.value;
-			} else {
-				CA.one.value = ACC1.value;
-			}
-		}
+	case 0x05: //Load CA from ACC, lands two steps later like C1
+		addr_regs_pipeline.single_ptr = opcode2_flag8 ? &CA.two : &CA.one;
+		addr_regs_pipeline.single_value.value = opcode2_flag4 ? ACC2.value : ACC1.value;
 		break;
 	case 0x06: //Load dual from CMEM
 	{
 		//Load: (arg = 0-3) DA, DIR, CA, DIR
 		uint32_t value = CMEM[cmemAddressing()].value;
 		switch (opcode2_args) {
-		case 0: //Load DA
-			DA.one.value = (value & 0xFFF);
-			DA.two.value = ((value >> 12) & 0xFFF);
-			break;
-		case 1: //Load DIR
-			DIR.one.value = (value & 0xFFF);
-			DIR.two.value = ((value >> 12) & 0xFFF);
-			break;
-		case 2: //Load CA
-			CA.one.value = (value & 0xFFF);
-			CA.two.value = ((value >> 12) & 0xFFF);
-			break;
-		case 3: //Load CIR
-			CIR.one.value = (value & 0xFFF);
-			CIR.two.value = ((value >> 12) & 0xFFF);
-			break;
+		case 0: addr_regs_pipeline.dual_ptr = &DA; break;
+		case 1: addr_regs_pipeline.dual_ptr = &DIR; break;
+		case 2: addr_regs_pipeline.dual_ptr = &CA; break;
+		case 3: addr_regs_pipeline.dual_ptr = &CIR; break;
 		}
+		//Lands two steps later, like C2-C5
+		addr_regs_pipeline.dual_value.one.value = value & 0xFFF;
+		addr_regs_pipeline.dual_value.two.value = (value >> 12) & 0xFFF;
 	} break;
 	case 0x07: //Save dual to CMEM
 		switch (opcode2_args) {
@@ -1140,35 +1095,21 @@ void Emulator::execSecondary() {
 			break;
 		}
 		break;
-	case 0x08: //Dereference CMEM ptr to DMEM addressing register
+	case 0x08: //Dereference CMEM ptr to DMEM addressing register, lands two steps later
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
-			if (opcode2_flag8) {
-				DIR.two.value = CMEM[cmemAddressing()].value;
-			} else {
-				DIR.one.value = CMEM[cmemAddressing()].value;
-			}
+			addr_regs_pipeline.single_ptr = opcode2_flag8 ? &DIR.two : &DIR.one;
 		} else {
-			if (opcode2_flag8) {
-				DA.two.value = CMEM[cmemAddressing()].value;
-			} else {
-				DA.one.value = CMEM[cmemAddressing()].value;
-			}
+			addr_regs_pipeline.single_ptr = opcode2_flag8 ? &DA.two : &DA.one;
 		}
+		addr_regs_pipeline.single_value.value = CMEM[cmemAddressing()].value;
 		break;
-	case 0x09: //Dereference CMEM ptr to CMEM addressing register //FIXME: combine with 0x08?
+	case 0x09: //Dereference CMEM ptr to CMEM addressing register, lands two steps later
 		if (opcode2_flag4) { //If 4 set, store in incrementing register
-			if (opcode2_flag8) {
-				CIR.two.value = CMEM[cmemAddressing()].value;
-			} else {
-				CIR.one.value = CMEM[cmemAddressing()].value;
-			}
+			addr_regs_pipeline.single_ptr = opcode2_flag8 ? &CIR.two : &CIR.one;
 		} else {
-			if (opcode2_flag8) {
-				CA.two.value = CMEM[cmemAddressing()].value;
-			} else {
-				CA.one.value = CMEM[cmemAddressing()].value;
-			}
+			addr_regs_pipeline.single_ptr = opcode2_flag8 ? &CA.two : &CA.one;
 		}
+		addr_regs_pipeline.single_value.value = CMEM[cmemAddressing()].value;
 		break;
 
 	case 0x0A: //Save addressing register to CMEM
