@@ -278,6 +278,7 @@ namespace TMS57070 {
         //52-bit
         MAC MACC1{ this };
         MAC MACC2{ this };
+        int24_t heldCoefficient{}; //Last CMEM word taken by a multiply, reused by primary 43
 
         //24-bit
         int24_t ACC1;
