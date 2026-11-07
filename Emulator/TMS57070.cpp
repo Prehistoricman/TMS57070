@@ -9,6 +9,7 @@ void Emulator::reset() {
 	RPTC = 0;
 	XMEM_read_addr = 0;
 	XMEM_read_cycles = 0;
+	heldCoefficient = int24_t{};
 
 	//TODO: read these from the input file/host interface
 	CR0.value = 0xAA9BAD;

@@ -483,6 +483,7 @@ void Emulator::execPrimary() {
 		case 0x4C: case 0x4D: signs = MACSigns::UU; break;
 		}
 
+		heldCoefficient = *cmem_word;
 		MACx->multiply(*cmem_word, *ACCx, signs, negate);
 	} break;
 
@@ -507,11 +508,12 @@ void Emulator::execPrimary() {
 		case 0x4E: signs = MACSigns::UU; break;
 		}
 
+		heldCoefficient = *cmem_word;
 		MACx->multiply(*cmem_word, *dmem_word, signs, negate);
 	} break;
 
-	case 0x43: //Multiply DMEM by MACLO
-	case 0x47: //unsigned MACLO
+	case 0x43: //Multiply DMEM by the held C word, for when a secondary has the C bus
+	case 0x47: //unsigned C
 	case 0x4B: //unsigned DMEM
 	case 0x4F: //unsigned both
 	{
@@ -520,8 +522,15 @@ void Emulator::execPrimary() {
 
 		bool negate = opcode1_flag8;
 
-		//Double precision: the low word is unsigned and the product sits 24 bits lower
-		MACx->multiplyLower(DMEM[dmemAddressing()], (opcode1 & 8) != 0, negate);
+		MACSigns signs;
+		switch (opcode1) {
+		case 0x43: signs = MACSigns::SS; break;
+		case 0x47: signs = MACSigns::US; break;
+		case 0x4B: signs = MACSigns::SU; break;
+		case 0x4F: signs = MACSigns::UU; break;
+		}
+
+		MACx->multiply(heldCoefficient, DMEM[dmemAddressing()], signs, negate);
 	} break;
 
 	case 0x50: //MAC CMEM by ACCx
@@ -705,6 +714,7 @@ void Emulator::execPrimary() {
 		case 0x6F: signs = MACSigns::UU; break;
 		}
 
+		heldCoefficient = *cmem_word;
 		MACx->mac(*cmem_word, *dmem_word, signs, negate);
 	} break;
 
@@ -723,6 +733,8 @@ void Emulator::execPrimary() {
 		if (opcode1 == 0x71) {
 			signs = MACSigns::US;
 		}
+
+		heldCoefficient = *cmem_word;
 
 		//Shift MAC right by 24
 		if (CR1.MASM == 0) {

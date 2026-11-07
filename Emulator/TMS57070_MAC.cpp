@@ -190,15 +190,6 @@ void MAC::multiply(MAC mac, MACSigns signs, bool negate) {
 	value.raw = mult_internal(lhs_aligned, rhs_aligned, negate);
 }
 
-//Primaries 43, 47, 4B, 4F: low word by DMEM, for double precision.
-//The low word is unsigned and the product is 24 bits below a normal one.
-void MAC::multiplyLower(int24_t rhs, bool rhs_unsigned, bool negate) {
-	int64_t lhs = (int64_t)(uint32_t)(value.raw_unsigned & UINT24_MAX);
-	int64_t factor = rhs_unsigned ? (int64_t)((uint32_t)rhs.value & UINT24_MAX) : (int64_t)rhs.value;
-	int64_t product = lhs * factor * 2;
-	value.raw = (negate ? -product : product) >> 24;
-}
-
 void MAC::mac(int24_t rhs, MACSigns signs, bool negate) {
 	int64_t current = value.raw;
 	//Apply accumulation shifter
